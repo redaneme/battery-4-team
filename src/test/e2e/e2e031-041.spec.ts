@@ -1,15 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import {
-  changeStatusByButton,
-  chipCount,
-  createOrder,
-  getMaster,
-  login,
-  postStatus,
-  readHistory,
-  readVersion,
-  restoreMaster,
-} from './helpers';
+import { apiMaster, createOrder, historyRows, login, loginUi, readMasterForm, saveMaster } from './helpers';
 
 /**
  * E2E-031 ~ E2E-041 (담당 시나리오 묶음)
@@ -21,7 +11,50 @@ import {
  *   035 없는 주문 번호 안내 (test.fail)
  *
  * 테스트 이름 앞의 번호(E2E-0xx)는 시나리오 엑셀의 ID 와 같다.
+ *
+ * 공용 helpers.ts 의 login/loginUi/createOrder/apiMaster/historyRows/readMasterForm/saveMaster 를 쓰고,
+ * 공용에 없는 보조 함수는 아래 '이 파일 전용 보조 함수'에 둔다.
  */
+
+// ---------------------------------------------------------------------------
+// 이 파일 전용 보조 함수
+// ---------------------------------------------------------------------------
+
+/** 이미 열려 있는 주문 상세 화면에서 [OO(으)로 변경] 버튼을 누르고 확인 창을 수락한다. 서버 응답을 받을 때까지 기다린다. */
+async function changeStatusByButton(page: Page, label: '진행' | '완료' | '취소') {
+  page.once('dialog', (dialog) => dialog.accept());
+  // 요청이 서버에 도달해 응답을 받을 때까지 기다린다. (바로 다른 화면으로 이동하면 요청이 끊길 수 있다)
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/status') && r.request().method() === 'POST'),
+    page.getByRole('button', { name: `${label}(으)로 변경` }).click(),
+  ]);
+  await page.waitForLoadState('domcontentloaded');
+}
+
+/** 주문 목록의 상태 칩 건수. label 은 '전체', '확정', '진행', '완료', '취소'. */
+async function chipCount(page: Page, label: string): Promise<number> {
+  const text = await page.locator('.filters .chip', { hasText: label }).locator('.count').innerText();
+  return Number(text.trim());
+}
+
+/** 주문 상세 HTML 의 숨은 version 값. 변경 버튼이 없는 최종 상태 주문에는 없다. */
+async function readVersion(page: Page, orderId: number): Promise<number> {
+  const html = await (await page.request.get(`/orders/${orderId}`)).text();
+  const m = html.match(/name="version"\s+value="(\d+)"/);
+  expect(m, '상세 화면에서 version 값을 찾지 못했다').not.toBeNull();
+  return Number(m![1]);
+}
+
+/** 화면에 버튼이 없는 상태 변경 요청을 직접 보낸다. 리다이렉트된 상세 화면의 HTML 을 돌려준다. */
+async function postStatus(page: Page, orderId: number, status: string, version: number): Promise<string> {
+  const res = await page.request.post(`/orders/${orderId}/status`, { form: { status, version: String(version) } });
+  return res.text();
+}
+
+/** 주문 상세 화면의 상태 이력을 '이전 → 새 상태' 문자열 배열로 읽는다. */
+async function readHistory(page: Page): Promise<string[]> {
+  return (await historyRows(page)).map((cells) => `${cells[1]} → ${cells[2]}`);
+}
 
 // ======================================================================
 // E2E-031
@@ -241,20 +274,24 @@ test('E2E-035 없는 주문 번호로 접속하면 이유를 알려 준다', asy
 test.describe('E2E-036~040 마스터 데이터', () => {
   test.describe.configure({ mode: 'serial' });
 
-  let original: any; // 테스트 시작 시점의 마스터
+  let original: any; // 테스트 시작 시점의 마스터(JSON)
+  let originalForm: Record<string, string>; // 같은 시점의 마스터 화면 입력값(복원용)
 
   test.beforeEach(async ({ page }) => {
     await login(page);
-    original = await getMaster(page);
+    original = await apiMaster(page);
+    originalForm = await readMasterForm(page);
   });
 
   test.afterEach(async ({ page }) => {
     // 어떤 테스트가 값을 바꿨든 시작 시점 값으로 되돌린다
-    await restoreMaster(page, original);
+    const res = await saveMaster(page, originalForm);
+    expect(res.status()).toBe(302);
   });
 
   /** E2E-036 마스터 화면에 현재 값이 보인다 */
   test('E2E-036 마스터 화면에 현재 값이 보인다', async ({ page }) => {
+    await page.goto('/orders');
     await page.getByRole('link', { name: '마스터 데이터' }).click();
     await expect(page).toHaveURL(/\/master$/);
     await expect(page.getByRole('heading', { name: '마스터 데이터' })).toBeVisible();
@@ -298,7 +335,7 @@ test.describe('E2E-036~040 마스터 데이터', () => {
     // 3. 화면을 새로 고쳐도 값이 남아 있고, API 의 version 이 1 올라 있다
     await page.reload();
     await expect(page.locator('input[name="maxDaily_CHINA"]')).toHaveValue(String(newMaxDaily));
-    const after = await getMaster(page);
+    const after = await apiMaster(page);
     expect(after.factories.find((f: any) => f.country === 'CHINA').maxDaily).toBe(newMaxDaily);
     expect(after.version).toBe(versionBefore + 1);
 
@@ -368,7 +405,7 @@ test.describe('E2E-036~040 마스터 데이터', () => {
         // 저장되지 않았다: 새로 고치면 이전 값이 보이고, 서버의 값과 version 도 그대로다
         await page.goto('/master');
         await expect(page.locator('input[name="shipDailyCost"]')).toHaveValue(savedValue);
-        const m = await getMaster(page);
+        const m = await apiMaster(page);
         expect(m.shipDailyCostWon).toBe(original.shipDailyCostWon);
         expect(m.version).toBe(original.version);
       });
@@ -402,7 +439,7 @@ test.describe('E2E-036~040 마스터 데이터', () => {
     // 4. 새로 고친다: 올바른 값(중국 하루 최대)도 저장되지 않아 원래 값이다
     await page.goto('/master');
     await expect(page.locator('input[name="maxDaily_CHINA"]')).toHaveValue(String(china.maxDaily));
-    const m = await getMaster(page);
+    const m = await apiMaster(page);
     expect(m.factories.find((f: any) => f.country === 'CHINA').maxDaily).toBe(china.maxDaily);
     expect(m.shipCount).toBe(original.shipCount);
     expect(m.version).toBe(original.version);
@@ -422,8 +459,9 @@ test.describe('E2E-036~040 마스터 데이터', () => {
  * 건수는 다른 테스트가 동시에 주문을 만들 수 있어 "늘었다(>=)"로 확인한다.
  */
 test('E2E-041 로그인부터 완료·로그아웃까지 한 번에 진행한다', async ({ page }) => {
-  // 1. 로그인
-  await login(page);
+  // 1. 로그인 (화면으로)
+  await loginUi(page);
+  await expect(page).toHaveURL(/\/orders$/);
   const completedBefore = await chipCount(page, '완료');
 
   // 2. [주문 추가]에서 기본 수량으로 시뮬레이션

@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>battery 코드 가이드</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --fg:#1d2430; --muted:#5d6878; --line:#dfe3ea;
+  --accent:#1f6feb; --accent-bg:#e7f0ff;
+  --ok:#1a7f4b; --ok-bg:#e3f6ec; --guess:#9a6700; --guess-bg:#fff3cd; --diff:#b42318; --diff-bg:#fde8e6;
+  --c1:#2f7fd8; --c2:#2a9d6f; --c3:#d9822b; --c4:#8a63d2; --c5:#c2477f;
+  --code:#eef1f5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10141a; --card:#181e27; --fg:#e6eaf0; --muted:#9aa6b6; --line:#2a3340;
+    --accent:#6ea8fe; --accent-bg:#1b2a44;
+    --ok:#5fd39a; --ok-bg:#15301f; --guess:#f0c36a; --guess-bg:#3a2f12; --diff:#ff8a80; --diff-bg:#3b1c1a;
+    --c1:#6ea8fe; --c2:#5fd39a; --c3:#f0a35e; --c4:#b79bf2; --c5:#f08ab5;
+    --code:#222b38;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.7 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px 80px}
+header.top{padding:36px 0 18px}
+header.top h1{margin:0 0 6px;font-size:28px}
+header.top p{margin:0;color:var(--muted)}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.meta span{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 12px;font-size:13px;color:var(--muted)}
+nav.toc{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 0;margin-bottom:20px}
+nav.toc ul{list-style:none;margin:0;padding:0;display:flex;gap:6px;overflow-x:auto;white-space:nowrap}
+nav.toc a{display:block;padding:4px 12px;border-radius:999px;color:var(--fg);text-decoration:none;font-size:13px;border:1px solid var(--line);background:var(--card)}
+nav.toc a:hover{border-color:var(--accent);color:var(--accent)}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px 22px 12px;margin:0 0 22px;scroll-margin-top:56px}
+section h2{margin:0 0 4px;font-size:21px}
+section h2 .no{color:var(--accent);margin-right:6px}
+section .lead{color:var(--muted);margin:0 0 14px}
+h3{margin:24px 0 8px;font-size:16.5px}
+p{margin:8px 0}
+code,.ref{font-family:Consolas,"D2Coding",monospace;font-size:12.5px;background:var(--code);border-radius:4px;padding:1px 6px}
+.ref{color:var(--accent);white-space:nowrap}
+.b{display:inline-block;font-size:11.5px;font-weight:700;border-radius:999px;padding:0 8px;line-height:20px;vertical-align:1px;white-space:nowrap}
+.b.ok{background:var(--ok-bg);color:var(--ok)}
+.b.guess{background:var(--guess-bg);color:var(--guess)}
+.b.diff{background:var(--diff-bg);color:var(--diff)}
+.note{border-left:4px solid var(--accent);background:var(--accent-bg);padding:10px 14px;border-radius:0 8px 8px 0;margin:14px 0}
+.note.warn{border-color:var(--guess);background:var(--guess-bg)}
+.note p:first-child{margin-top:0}.note p:last-child{margin-bottom:0}
+table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:13.5px}
+.tw{overflow-x:auto}
+th,td{border-bottom:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--code);font-weight:700;white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:12px 0}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg)}
+.card h4{margin:0 0 6px;font-size:14.5px}
+.card ul{margin:0;padding-left:18px;font-size:13.5px}
+.card .sub{color:var(--muted);font-size:12.5px;margin:0 0 6px}
+dl.gl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:10px 0}
+dl.gl dt{font-weight:700}
+dl.gl dd{margin:0}
+ol.steps{padding-left:20px}
+ol.steps li{margin:6px 0}
+svg{display:block;max-width:100%;height:auto;margin:10px auto}
+svg text{fill:var(--fg);font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;font-size:12px}
+svg .m{fill:var(--muted)}
+svg .s{font-size:11px}
+svg.seq text.s{paint-order:stroke;stroke:var(--card);stroke-width:4px;stroke-linejoin:round}
+svg .bx{fill:var(--card);stroke:var(--line);stroke-width:1.4}
+svg .bx.a{fill:var(--accent-bg);stroke:var(--accent)}
+svg line.ln{stroke:var(--muted);stroke-width:1.3}
+svg line.ds{stroke:var(--muted);stroke-width:1.3;stroke-dasharray:5 4}
+svg .arrow{fill:var(--muted)}
+.cap{color:var(--muted);font-size:13px;text-align:center;margin:-2px 0 14px}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:10px 0}
+@media (max-width:600px){
+  header.top h1{font-size:23px}
+  section{padding:16px 14px 8px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>battery 코드 가이드</h1>
+  <p>배터리 주문·운송 계획 앱을 처음 보는 사람을 위한 코드 읽기 안내서</p>
+  <div class="meta">
+    <span>작성: 허주 (미션1)</span>
+    <span>기준: <code>main</code> f7a43aa</span>
+    <span>수치 확인일: 2026-10-21 (전체 테스트 22개 통과)</span>
+  </div>
+  <div class="note" style="margin-top:16px">
+    <p><b>읽는 법.</b> <span class="b ok">확인</span> 코드나 실행 결과로 직접 확인한 내용, <span class="b guess">추정</span> 코드에서 짐작한 내용, <span class="b diff">설명과 다름</span> 대화로 받은 도메인 설명과 코드가 다른 곳입니다. <span class="ref">파일:줄</span>은 근거 위치입니다. 이 시스템은 <b>실습용</b>이라 데이터가 정확하지 않을 수 있습니다.</p>
+  </div>
+</header>
+
+<nav class="toc"><ul>
+  <li><a href="#s1">1 한눈에 보기</a></li>
+  <li><a href="#s2">2 아키텍처</a></li>
+  <li><a href="#s3">3 파일 지도</a></li>
+  <li><a href="#s4">4 주문 흐름</a></li>
+  <li><a href="#s5">5 플래너</a></li>
+  <li><a href="#s6">6 데이터 모델</a></li>
+  <li><a href="#s7">7 설명과 코드 대조</a></li>
+  <li><a href="#s8">8 읽는 순서</a></li>
+  <li><a href="#s9">9 팀 합의</a></li>
+</ul></nav>
+
+<!-- ============================================================ 1 -->
+<section id="s1">
+  <h2><span class="no">1</span>한눈에 보기</h2>
+  <p class="lead">나라별 주문 수량을 넣으면, 언제 어떤 배로 실어 올지 일정과 비용을 계산해 주는 앱입니다.</p>
+
+  <p>한국에 본사를 둔 DSD는 중국·일본·베트남·인도네시아 4개 공장에서 같은 전기차용 배터리(2170 원통형 셀)를 만듭니다. 이 앱에서 사용자는 나라별 주문 수량을 입력하고, 앱은 <b>경로 3가지</b>(운항비 최소 / 가장 빠르게 / 가까운 곳부터)의 일정·비용을 계산해 보여 줍니다. 사용자가 하나를 골라 <b>확정</b>하면 주문으로 저장되고, 이후 <b>확정 → 진행 → 완료</b>(또는 취소)로 상태를 관리합니다.</p>
+
+  <svg viewBox="0 0 720 300" role="img" aria-label="한국 허브와 4개 공장, 한국과의 항해 일수">
+    <defs><marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow"/></marker></defs>
+    <!-- 한국 -->
+    <rect class="bx a" x="290" y="20" width="140" height="56" rx="10"/>
+    <text x="360" y="44" text-anchor="middle" style="font-weight:700">한국 (본사)</text>
+    <text x="360" y="62" text-anchor="middle" class="m s">재고 무제한 · 배 정박 무료</text>
+    <!-- 공장 4 -->
+    <g>
+      <line class="ln" x1="300" y1="76" x2="120" y2="200" marker-end="url(#ah1)"/>
+      <line class="ln" x1="335" y1="76" x2="290" y2="200" marker-end="url(#ah1)"/>
+      <line class="ln" x1="385" y1="76" x2="470" y2="200" marker-end="url(#ah1)"/>
+      <line class="ln" x1="420" y1="76" x2="620" y2="200" marker-end="url(#ah1)"/>
+      <text x="190" y="128" class="m s" text-anchor="middle">1일</text>
+      <text x="306" y="134" class="m s" text-anchor="end">2일</text>
+      <text x="436" y="134" class="m s" text-anchor="start">5일</text>
+      <text x="540" y="128" class="m s" text-anchor="middle">7일</text>
+    </g>
+    <g text-anchor="middle">
+      <rect class="bx" x="40" y="200" width="160" height="78" rx="10"/>
+      <text x="120" y="222" style="font-weight:700">중국</text>
+      <text x="120" y="240" class="m s">하루 최대 400K · 상한 4,000K</text>
+      <text x="120" y="258" class="m s">셀당 700원</text>
+      <rect class="bx" x="210" y="200" width="160" height="78" rx="10"/>
+      <text x="290" y="222" style="font-weight:700">일본</text>
+      <text x="290" y="240" class="m s">하루 최대 800K · 상한 2,000K</text>
+      <text x="290" y="258" class="m s">셀당 900원</text>
+      <rect class="bx" x="380" y="200" width="160" height="78" rx="10"/>
+      <text x="460" y="222" style="font-weight:700">베트남</text>
+      <text x="460" y="240" class="m s">하루 최대 200K · 상한 10,000K</text>
+      <text x="460" y="258" class="m s">셀당 550원</text>
+      <rect class="bx" x="550" y="200" width="160" height="78" rx="10"/>
+      <text x="630" y="222" style="font-weight:700">인도네시아</text>
+      <text x="630" y="240" class="m s">하루 최대 300K · 상한 7,000K</text>
+      <text x="630" y="258" class="m s">셀당 450원</text>
+    </g>
+  </svg>
+  <p class="cap">그림의 숫자는 코드의 초기값입니다 <span class="ref">BatteryService.java:69-83</span>. 공장끼리의 항로(중국-일본 2일 등)는 7장에 있습니다.</p>
+
+  <h3>용어</h3>
+  <dl class="gl">
+    <dt>K</dt><dd>1,000개. 모든 수량(주문, 재고, 생산량)이 K 단위입니다. 차량 한 대에 약 4K개가 필요합니다.</dd>
+    <dt>셀(Cell)</dt><dd>배터리 한 개. "셀당 원가"는 셀 1개의 생산 원가(원)입니다 <span class="ref">Factory.java:26-27</span>.</dd>
+    <dt>하루 최대 생산량</dt><dd>공장이 하루에 만들 수 있는 최대 수량(K) <span class="ref">Factory.java:18-20</span>.</dd>
+    <dt>재고 상한</dt><dd>공장 창고에 쌓아 둘 수 있는 최대 수량(K). 가득 차면 배가 가져가기 전까지 생산이 멈춥니다 <span class="ref">Factory.java:22-24</span>.</dd>
+    <dt>방문 횟수</dt><dd>한 나라에 배가 들러야 하는 횟수 = 올림(주문 ÷ 재고 상한) <span class="ref">Planner.java:39-47</span>.</dd>
+    <dt>왕복(Trip)</dt><dd>한국 출항 → 여러 나라 방문 → 한국 귀환 한 번 <span class="ref">Plan.java:19-21</span>.</dd>
+    <dt>마스터 데이터</dt><dd>공장 값, 항로 일수, 배 척수, 운항비. 화면(<code>/master</code>)에서 수정합니다.</dd>
+    <dt>스냅샷</dt><dd>주문을 확정할 때 마스터 값과 계획 결과를 JSON으로 통째로 저장한 것. 나중에 마스터가 바뀌어도 확정한 주문은 그대로입니다.</dd>
+  </dl>
+</section>
+
+<!-- ============================================================ 2 -->
+<section id="s2">
+  <h2><span class="no">2</span>아키텍처</h2>
+  <p class="lead">화면 → 컨트롤러 → 서비스 → (계산기 | 저장소) 의 단순한 계층 구조입니다.</p>
+
+  <svg viewBox="0 0 720 470" role="img" aria-label="계층 구조도">
+    <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow"/></marker></defs>
+    <rect class="bx" x="40" y="10" width="640" height="72" rx="10"/>
+    <text x="360" y="34" text-anchor="middle" style="font-weight:700">브라우저</text>
+    <text x="360" y="54" text-anchor="middle" class="m s">Thymeleaf 화면(orders · order-new · order-detail · master · login)</text>
+    <text x="360" y="71" text-anchor="middle" class="m s">JS: order-new.js(입력·시뮬레이션) · planview.js(표) · anim.js(지도 애니메이션) · common.js</text>
+    <line class="ln" x1="360" y1="82" x2="360" y2="112" marker-end="url(#ah2)"/>
+    <text x="372" y="102" class="m s">HTTP: 화면 요청 / JSON API(/api/…)</text>
+
+    <rect class="bx" x="140" y="112" width="440" height="40" rx="10"/>
+    <text x="360" y="130" text-anchor="middle" style="font-weight:700">LoginInterceptor</text>
+    <text x="360" y="145" text-anchor="middle" class="m s">세션에 로그인 정보가 없으면 /login 으로(API는 401) · WebConfig 에서 등록</text>
+    <line class="ln" x1="360" y1="152" x2="360" y2="180" marker-end="url(#ah2)"/>
+
+    <rect class="bx a" x="140" y="180" width="440" height="52" rx="10"/>
+    <text x="360" y="202" text-anchor="middle" style="font-weight:700">AppController</text>
+    <text x="360" y="220" text-anchor="middle" class="m s">화면 이동 + JSON API. 오류(BusinessException)를 400/409 로 바꿔 줌</text>
+    <line class="ln" x1="360" y1="232" x2="360" y2="262" marker-end="url(#ah2)"/>
+
+    <rect class="bx a" x="140" y="262" width="440" height="56" rx="10"/>
+    <text x="360" y="284" text-anchor="middle" style="font-weight:700">BatteryService</text>
+    <text x="360" y="302" text-anchor="middle" class="m s">업무 규칙: 입력 검증 · 마스터 관리 · 시뮬레이션 · 주문 확정 · 상태 변경 (트랜잭션)</text>
+    <line class="ln" x1="250" y1="318" x2="190" y2="356" marker-end="url(#ah2)"/>
+    <line class="ln" x1="470" y1="318" x2="530" y2="356" marker-end="url(#ah2)"/>
+
+    <rect class="bx" x="40" y="356" width="300" height="64" rx="10"/>
+    <text x="190" y="378" text-anchor="middle" style="font-weight:700">simulation 패키지 (Planner)</text>
+    <text x="190" y="396" text-anchor="middle" class="m s">경로 3가지 계산. DB를 모르는 순수 계산</text>
+    <text x="190" y="411" text-anchor="middle" class="m s">입력: Master 스냅샷 + 나라별 주문 수량</text>
+
+    <rect class="bx" x="380" y="356" width="300" height="64" rx="10"/>
+    <text x="530" y="378" text-anchor="middle" style="font-weight:700">repository 패키지 (JPA)</text>
+    <text x="530" y="396" text-anchor="middle" class="m s">Factory · Route · Setting · Order · OrderStatusHistory</text>
+    <line class="ln" x1="530" y1="420" x2="530" y2="440" marker-end="url(#ah2)"/>
+    <rect class="bx" x="430" y="440" width="200" height="26" rx="8"/>
+    <text x="530" y="458" text-anchor="middle" class="s">H2 파일 DB (./data/battery)</text>
+  </svg>
+  <p class="cap">LoginInterceptor <span class="ref">LoginInterceptor.java:13-26</span> · WebConfig <span class="ref">WebConfig.java:10-15</span> · AppController <span class="ref">AppController.java:27-28</span> · BatteryService <span class="ref">BatteryService.java:32-33</span></p>
+
+  <h3>핵심 설계 두 가지</h3>
+  <ul>
+    <li><b>Planner 는 DB를 모릅니다.</b> <span class="b ok">확인</span> <code>Master</code> 레코드(공장·항로·배 값의 사본)와 주문 수량만 받아 계산합니다 <span class="ref">Planner.java:49</span>, <span class="ref">Master.java:7-31</span>. 엔티티 중 사용하는 건 <code>Country</code> enum 뿐입니다 <span class="ref">Planner.java:3</span>. 그래서 테스트가 DB 없이 돌아갑니다 <span class="ref">PlannerTest.java:17-33</span>.</li>
+    <li><b>서버가 다시 계산합니다.</b> <span class="b ok">확인</span> 주문 확정 때 화면이 보낸 계산 결과를 믿지 않고, 같은 입력으로 서버가 다시 계산합니다 <span class="ref">BatteryService.java:220-227</span>.</li>
+  </ul>
+
+  <h3>기술 스택</h3>
+  <div class="tw"><table>
+    <tr><th>항목</th><th>값</th><th>근거</th></tr>
+    <tr><td>프레임워크</td><td>Spring Boot 4.1.1, Java 17(Gradle toolchain)</td><td><span class="ref">build.gradle.kts:3, 12</span></td></tr>
+    <tr><td>화면</td><td>Thymeleaf 서버 렌더링 + 바닐라 JS</td><td><span class="ref">build.gradle.kts:21</span></td></tr>
+    <tr><td>저장소</td><td>Spring Data JPA + H2 파일 DB <code>./data/battery</code> (<code>AUTO_SERVER=TRUE</code>)</td><td><span class="ref">application.properties:2</span></td></tr>
+    <tr><td>스키마</td><td><code>ddl-auto=update</code> (테이블 자동 생성·갱신)</td><td><span class="ref">application.properties:5</span></td></tr>
+    <tr><td>뷰 렌더링 중 DB 세션</td><td><code>open-in-view=false</code> (화면을 그리는 동안에는 DB 세션이 열려 있지 않아 지연 로딩을 쓸 수 없음)</td><td><span class="ref">application.properties:6</span></td></tr>
+    <tr><td>테스트 DB</td><td>메모리 H2 (<code>create-drop</code>)라 실행 중 앱 DB와 섞이지 않음</td><td><span class="ref">src/test/resources/application.properties:1-2</span></td></tr>
+    <tr><td>초기 데이터</td><td>앱 시작 시 마스터가 비어 있으면 기본값을 넣음</td><td><span class="ref">DataInitializer.java:18-20</span>, <span class="ref">BatteryService.java:65-67</span></td></tr>
+    <tr><td>로그인</td><td><code>admin</code>/<code>admin</code> 고정 계정 하나</td><td><span class="ref">AppController.java:30, 68</span></td></tr>
+  </table></div>
+</section>
+
+<!-- ============================================================ 3 -->
+<section id="s3">
+  <h2><span class="no">3</span>파일 지도</h2>
+  <p class="lead">경로는 모두 <code>src/main/java/com/example/demo/</code> 아래 기준입니다(화면·JS는 <code>src/main/resources/</code>).</p>
+  <div class="tw"><table>
+    <tr><th>위치</th><th>파일</th><th>맡은 일</th></tr>
+    <tr><td rowspan="1">(루트)</td><td><code>DemoApplication</code></td><td>Spring Boot 시작점 <span class="ref">DemoApplication.java:6-11</span></td></tr>
+    <tr><td rowspan="4">config</td><td><code>WebConfig</code></td><td>로그인 인터셉터를 모든 경로에 걸고 <code>/login</code>, 정적 파일 등은 제외</td></tr>
+    <tr><td><code>LoginInterceptor</code></td><td>세션 로그인 확인. 화면은 /login 이동, API는 401</td></tr>
+    <tr><td><code>DataInitializer</code></td><td>시작 시 <code>initDefaults()</code> 호출</td></tr>
+    <tr><td><code>JpaConfig</code></td><td>repository 패키지(중첩 인터페이스 포함) 스캔 설정 <span class="ref">JpaConfig.java:7</span></td></tr>
+    <tr><td>controller</td><td><code>AppController</code></td><td>로그인, 주문 목록/추가/상세, 상태 변경, 마스터 화면, JSON API(<code>/api/master</code>, <code>/api/simulate</code>, <code>/api/orders</code>)</td></tr>
+    <tr><td rowspan="2">service</td><td><code>BatteryService</code></td><td>모든 업무 규칙(마스터 저장·검증, 시뮬레이션, 확정, 상태 변경)</td></tr>
+    <tr><td><code>BusinessException</code></td><td>사용자에게 이유를 보여 줄 업무 오류. <code>conflict</code> 가 true 면 충돌(409)</td></tr>
+    <tr><td rowspan="5">simulation</td><td><code>Planner</code></td><td><b>핵심.</b> 경로 3가지 계산 (5장)</td></tr>
+    <tr><td><code>Master</code></td><td>계산에 쓰는 마스터 값의 사본(레코드)</td></tr>
+    <tr><td><code>Plan</code></td><td>계산 결과(배·왕복·정차·일별 재고/생산)</td></tr>
+    <tr><td><code>StoredPlan</code></td><td>주문에 저장하는 스냅샷 = 마스터 + 주문 수량 + 방문 횟수 + 선택한 Plan</td></tr>
+    <tr><td colspan="2" class="muted" style="color:var(--muted)">(Plan 안에 <code>ShipPlan</code>, <code>Trip</code>, <code>Stop</code> 레코드가 들어 있음)</td></tr>
+    <tr><td rowspan="7">entity</td><td><code>Country</code></td><td>KOREA + 4개 공장 국가 enum. <code>factories()</code> 는 한국 제외 <span class="ref">Country.java:27-29</span></td></tr>
+    <tr><td><code>Factory</code></td><td>공장 값(하루 최대, 재고 상한, 셀당 원가)</td></tr>
+    <tr><td><code>Route</code></td><td>나라 간 항해 일수. 양방향이라 한 쌍당 한 건만 저장 <span class="ref">Route.java:13</span></td></tr>
+    <tr><td><code>Setting</code></td><td>배 척수, 척당 일 운항비, 마스터 버전. 한 행만 존재 <span class="ref">Setting.java:8-13</span></td></tr>
+    <tr><td><code>Order</code></td><td>확정된 주문. 비용 요약 + 스냅샷 JSON(<code>planJson</code>)</td></tr>
+    <tr><td><code>OrderStatus</code></td><td>확정/진행/완료/취소와 가능한 전이</td></tr>
+    <tr><td><code>OrderStatusHistory</code></td><td>상태가 바뀐 이력(누가, 언제, 어디서 어디로)</td></tr>
+    <tr><td>repository</td><td><code>MasterRepositories</code>, <code>OrderRepositories</code></td><td>JPA 인터페이스 모음(Setting/Factory/Route, Order/History)</td></tr>
+    <tr><td rowspan="4">templates</td><td><code>orders.html</code>, <code>order-new.html</code></td><td>주문 목록(상태 필터), 주문 추가(게이지 → 시뮬레이션 → 확정)</td></tr>
+    <tr><td><code>order-detail.html</code></td><td>주문 상세: 상태 변경 버튼, 이력, 저장된 계획 표시</td></tr>
+    <tr><td><code>master.html</code></td><td>마스터 데이터 편집 폼</td></tr>
+    <tr><td><code>login.html</code>, <code>fragments.html</code></td><td>로그인, 공통 head/header</td></tr>
+    <tr><td rowspan="4">static/js</td><td><code>order-new.js</code></td><td>게이지 입력, 시뮬레이션 호출, 결과 선택, 주문 확정 호출</td></tr>
+    <tr><td><code>planview.js</code></td><td>계획을 요약·배 경로·일별 생산·마스터 표로 그림</td></tr>
+    <tr><td><code>anim.js</code></td><td>지도 위 배 이동 애니메이션(재고·비용·한국 입고량 표시)</td></tr>
+    <tr><td><code>common.js</code></td><td>국가 이름, 숫자 포맷(<code>fmt</code>, <code>eok</code>), <code>postJson</code></td></tr>
+  </table></div>
+</section>
+
+<!-- ============================================================ 4 -->
+<section id="s4">
+  <h2><span class="no">4</span>주문 흐름</h2>
+  <p class="lead">입력 → 시뮬레이션 → 확정 → 상태 변경, 세 번의 서버 호출로 이루어집니다.</p>
+
+  <svg class="seq" viewBox="0 0 740 440" role="img" aria-label="주문 시뮬레이션과 확정 시퀀스">
+    <defs><marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow"/></marker></defs>
+    <g text-anchor="middle" style="font-weight:700">
+      <rect class="bx a" x="30" y="8" width="100" height="26" rx="6"/><text x="80" y="26">브라우저</text>
+      <rect class="bx a" x="190" y="8" width="100" height="26" rx="6"/><text x="240" y="26">AppController</text>
+      <rect class="bx a" x="350" y="8" width="100" height="26" rx="6"/><text x="400" y="26">BatteryService</text>
+      <rect class="bx a" x="490" y="8" width="100" height="26" rx="6"/><text x="540" y="26">Planner</text>
+      <rect class="bx a" x="620" y="8" width="100" height="26" rx="6"/><text x="670" y="26">DB (H2)</text>
+    </g>
+    <g>
+      <line class="ds" x1="80" y1="34" x2="80" y2="430"/><line class="ds" x1="240" y1="34" x2="240" y2="430"/>
+      <line class="ds" x1="400" y1="34" x2="400" y2="430"/><line class="ds" x1="540" y1="34" x2="540" y2="430"/>
+      <line class="ds" x1="670" y1="34" x2="670" y2="430"/>
+    </g>
+    <rect x="20" y="44" width="700" height="22" rx="6" fill="var(--accent-bg)"/>
+    <text x="30" y="59" style="font-size:11px;font-weight:700">① 시뮬레이션 — 계산만 하고 저장하지 않는다</text>
+    <line class="ln" x1="80" y1="82" x2="240" y2="82" marker-end="url(#ah3)"/><text x="88" y="76" class="s">POST /api/simulate {orders}</text>
+    <line class="ln" x1="240" y1="106" x2="400" y2="106" marker-end="url(#ah3)"/><text x="248" y="100" class="s">simulate()</text>
+    <line class="ln" x1="400" y1="130" x2="670" y2="130" marker-end="url(#ah3)"/><text x="408" y="124" class="s">currentMaster() 로 마스터 읽기</text>
+    <line class="ln" x1="400" y1="154" x2="540" y2="154" marker-end="url(#ah3)"/><text x="408" y="148" class="s">plan(master, orders)</text>
+    <line class="ds" x1="240" y1="186" x2="80" y2="186" marker-end="url(#ah3)"/><text x="92" y="180" class="s">옵션 3개 + master.version</text>
+    <rect x="20" y="206" width="700" height="24" rx="6" fill="var(--accent-bg)"/>
+    <text x="370" y="223" text-anchor="middle" style="font-size:11px">사용자가 경로(COST / FAST / NEAR)를 고르고 메모를 적는다</text>
+
+    <rect x="20" y="238" width="700" height="22" rx="6" fill="var(--accent-bg)"/>
+    <text x="30" y="253" style="font-size:11px;font-weight:700">② 확정 — 서버가 다시 계산한 뒤 저장한다</text>
+    <line class="ln" x1="80" y1="276" x2="240" y2="276" marker-end="url(#ah3)"/><text x="88" y="270" class="s">POST /api/orders {orders, routeType, masterVersion}</text>
+    <line class="ln" x1="240" y1="300" x2="400" y2="300" marker-end="url(#ah3)"/><text x="248" y="294" class="s">confirm()</text>
+    <line class="ln" x1="400" y1="324" x2="540" y2="324" marker-end="url(#ah3)"/><text x="408" y="318" class="s">같은 입력으로 다시 계산</text>
+    <text x="408" y="340" class="s" style="fill:var(--diff)">마스터 버전이 다르면 → 409 충돌</text>
+    <line class="ln" x1="400" y1="362" x2="670" y2="362" marker-end="url(#ah3)"/><text x="408" y="356" class="s">Order(+스냅샷 JSON) 저장, 이력 CONFIRMED</text>
+    <line class="ds" x1="240" y1="400" x2="80" y2="400" marker-end="url(#ah3)"/><text x="92" y="394" class="s">{id} → 상세 화면으로 이동</text>
+  </svg>
+  <p class="cap">① <span class="ref">order-new.js:106</span> → <span class="ref">AppController.java:172-180</span> → <span class="ref">BatteryService.java:190-195</span> · ② <span class="ref">order-new.js:158</span> → <span class="ref">AppController.java:182-192</span> → <span class="ref">BatteryService.java:225-248</span></p>
+
+  <h3>확정할 때 서버가 하는 일 <span class="ref">BatteryService.java:225-248</span></h3>
+  <ol class="steps">
+    <li>입력으로 시뮬레이션을 <b>다시 실행</b>합니다(227). 화면 값은 믿지 않습니다.</li>
+    <li>화면이 시뮬레이션했을 때의 <code>masterVersion</code> 과 지금 마스터 버전이 다르면 거부합니다(228-230). 그 사이 누가 마스터를 바꾼 경우입니다.</li>
+    <li>고른 경로 종류(<code>routeType</code>)에 맞는 계획을 찾고(231-232), 메모 길이를 확인합니다(233-239, 최대 1,000자).</li>
+    <li>마스터 값·주문 수량·방문 횟수·선택한 계획을 <code>StoredPlan</code> 으로 묶어 JSON 문자열로 저장합니다(241-245).</li>
+    <li>상태 이력에 "없음 → 확정" 을 남깁니다(246).</li>
+  </ol>
+
+  <h3>상태 전이</h3>
+  <svg viewBox="0 0 640 170" role="img" aria-label="주문 상태 전이도">
+    <defs><marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow"/></marker></defs>
+    <g text-anchor="middle" style="font-weight:700">
+      <rect class="bx a" x="20" y="20" width="110" height="40" rx="10"/><text x="75" y="45">확정</text>
+      <rect class="bx a" x="265" y="20" width="110" height="40" rx="10"/><text x="320" y="45">진행</text>
+      <rect class="bx a" x="510" y="20" width="110" height="40" rx="10"/><text x="565" y="45">완료</text>
+      <rect class="bx" x="265" y="110" width="110" height="40" rx="10"/><text x="320" y="135">취소</text>
+    </g>
+    <line class="ln" x1="130" y1="40" x2="265" y2="40" marker-end="url(#ah4)"/>
+    <line class="ln" x1="375" y1="40" x2="510" y2="40" marker-end="url(#ah4)"/>
+    <line class="ln" x1="110" y1="60" x2="268" y2="118" marker-end="url(#ah4)"/>
+    <line class="ln" x1="320" y1="60" x2="320" y2="110" marker-end="url(#ah4)"/>
+    <text x="560" y="110" class="m s" text-anchor="middle">완료·취소는 최종 상태</text>
+  </svg>
+  <p class="cap"><span class="ref">OrderStatus.java:21-27</span> · 허용되지 않은 전이는 BusinessException <span class="ref">BatteryService.java:283-286</span></p>
+
+  <h3>동시에 바뀌는 것 막기 <span class="ref">BatteryService.java:278-302</span></h3>
+  <ul>
+    <li>상태 변경 폼은 화면에서 본 주문의 <code>version</code> 을 함께 보냅니다 <span class="ref">order-detail.html:28</span>. 서버의 현재 version 과 다르면 "다른 사용자가 먼저 변경" 오류(409)입니다(280-282).</li>
+    <li>그래도 새어 나오는 경쟁은 JPA 낙관적 락(<code>@Version</code>)이 막습니다(290-293) <span class="ref">Order.java:56-57</span>.</li>
+    <li>취소하면 이력을 남긴 뒤 <b>주문 행을 삭제</b>합니다(295-297). 목록에서 사라집니다. <span class="b guess">추정</span> 이력 테이블에 FK가 없어서 이력은 남을 것으로 보이지만 이를 확인하는 테스트는 없습니다.</li>
+  </ul>
+
+  <h3>오류가 화면에 나오는 길</h3>
+  <p><code>BusinessException</code> 을 컨트롤러가 받아 API는 <b>400</b>(입력 오류) 또는 <b>409</b>(충돌)과 <code>{error, conflict}</code> JSON으로 돌려주고 <span class="ref">AppController.java:194-197</span>, 화면 폼은 메시지를 플래시로 보여 줍니다 <span class="ref">AppController.java:114-116</span>. JS는 <code>postJson</code> 이 이 메시지를 <code>Error</code> 로 던집니다 <span class="ref">common.js:25-29</span>.</p>
+</section>
+
+<!-- ============================================================ 5 -->
+<section id="s5">
+  <h2><span class="no">5</span>플래너 알고리즘 <small style="font-size:13px;color:var(--muted)">(Planner.java)</small></h2>
+  <p class="lead">가장 중요한 파일입니다. 주문 수량으로 "어느 배가 어느 나라를 언제 들를지"를 정하고 비용을 계산합니다.</p>
+
+  <h3>5.1 규칙 <span class="ref">Planner.java:15-26</span></h3>
+  <ul>
+    <li>0일차에 4개 공장이 <b>동시에</b> 생산을 시작합니다.</li>
+    <li>하루 생산 = <code>min(하루 최대, 재고 상한 − 현재 재고, 남은 주문)</code> <span class="ref">Planner.java:402</span>. 창고가 차면 멈춥니다.</li>
+    <li>배는 도착한 순간의 재고를 <b>전부</b> 싣습니다. 한 나라는 <b>한 척</b>의 배만 방문합니다.</li>
+    <li>한 나라의 방문 횟수 = 올림(주문 ÷ 재고 상한). 마지막 방문 전까지는 재고 상한만큼, 마지막에 나머지를 싣습니다 <span class="ref">Planner.java:84-98</span>.</li>
+    <li>여러 번 수거할 때는 한국에 들러 내려놓고 다시 출항합니다(왕복을 나눔).</li>
+    <li>배는 재고가 찰 시점에 맞춰 <b>늦게</b> 출항합니다. 한국에서 기다리는 시간은 비용이 없습니다 <span class="ref">Planner.java:336-341</span>(운항 일수만 비용에 반영).</li>
+  </ul>
+
+  <h3>5.2 계산 순서 <span class="ref">Planner.java:49-79</span></h3>
+  <ol class="steps">
+    <li><b>나라별 방문 횟수와 적재량</b>을 구합니다 <span class="ref">:84-98</span>. 예: 일본 3,000K, 상한 2,000K → 2번 방문, 싣는 양 [2,000K, 1,000K].</li>
+    <li><b>나라를 배에 나누는 모든 방법</b>을 만듭니다(배 척수 이하의 묶음) <span class="ref">:101-127</span>. 한 묶음 = 배 한 척이 맡는 나라들.</li>
+    <li>묶음마다 <b>왕복 구성</b>을 만듭니다 <span class="ref">:147-197</span>. 방문 횟수가 왕복 수보다 적은 나라는 어느 왕복에 넣을지 3가지 패턴(앞쪽 / 뒤쪽 / 고르게)을 모두 시도하고 <span class="ref">:139-141, 199-210</span>, 왕복 안의 방문 순서는 항해 일수가 가장 짧은 순열을 고릅니다 <span class="ref">:213-224</span>.</li>
+    <li>각 구성마다 <b>일정을 계산</b>합니다(출항일·도착일·귀환일, 소요 일수, 운항비) <span class="ref">:295-344</span>.</li>
+    <li>후보 전체에서 <b>COST</b>(운항비 최소, 같으면 더 빠른 쪽)와 <b>FAST</b>(소요 일수 최소, 같으면 더 싼 쪽)를 뽑습니다 <span class="ref">:63-70</span>.</li>
+    <li><b>NEAR</b>는 전수 탐색이 아니라 규칙으로 만듭니다 <span class="ref">:255-284</span>. 한국에서 가까운 순으로 나라를 배에 돌려 가며 배정하고, 왕복마다 방문 순서는 가까운 나라부터입니다.</li>
+    <li>선택된 3개 후보에 대해 <b>일별 재고·생산</b>을 하루씩 시뮬레이션하고 생산 원가를 계산합니다 <span class="ref">:352-411</span>.</li>
+  </ol>
+  <div class="note warn"><p><span class="b guess">추정</span> 나라 분할·패턴·순열을 모두 시도하므로 나라 수나 배 수가 늘면 후보가 빠르게 늘어납니다. 현재는 공장 4개·배 최대 4척으로 고정이라 문제가 없어 보입니다(실행 시간은 측정하지 않았습니다).</p></div>
+
+  <h3>5.3 일정 계산 풀이 <span class="ref">Planner.java:295-344</span></h3>
+  <p>핵심은 한 번의 왕복에서 <b>"언제 출항해야 낭비 없이 도착하나"</b> 입니다. 각 방문지에 대해</p>
+  <ul>
+    <li><code>준비 완료일(ready)</code> = <b>직전 수거일</b> + 올림(실을 양 ÷ 하루 최대) <span class="ref">:322</span></li>
+    <li><code>출항일(depart)</code> = max( 배가 비는 날, ready − 한국에서 그곳까지 걸리는 일수 ) 중 최댓값 <span class="ref">:318-324</span></li>
+  </ul>
+  <p>방문지마다 이 값을 구해 그중 가장 큰 값이 출항일입니다. 가장 늦게 준비되는 나라(병목)가 출항일을 정합니다.</p>
+
+  <h4 style="margin:18px 0 6px">풀이 A — 일본 3,000K를 한 척이 맡는 경우 (기본 주문의 FAST 2호)</h4>
+  <p>일본: 하루 최대 800K, 재고 상한 2,000K, 한국-일본 2일. 방문 2번, 싣는 양 [2,000K, 1,000K].</p>
+  <div class="tw"><table>
+    <tr><th>왕복</th><th>싣는 양</th><th>준비 완료일 (직전 수거일 + 올림(양÷800))</th><th>출항일 (max(배 빈 날, 준비일−2))</th><th>도착</th><th>귀환 (도착+2)</th></tr>
+    <tr><td>1</td><td class="n">2,000K</td><td>0 + 올림(2,000÷800)=3 → <b>3일</b></td><td>max(0, 3−2) = <b>1일</b></td><td class="n">3일</td><td class="n">5일</td></tr>
+    <tr><td>2</td><td class="n">1,000K</td><td>3 + 올림(1,000÷800)=2 → <b>5일</b></td><td>max(5, 5−2) = <b>5일</b> (배가 5일에 돌아옴)</td><td class="n">7일</td><td class="n">9일</td></tr>
+  </table></div>
+  <p class="cap" style="text-align:left">실제 실행 결과와 일치: 「2호 출항 1 → 일본(3일,2000) → 귀환 5」, 「2호 출항 5 → 일본(7일,1000) → 귀환 9」 <span class="b ok">확인</span></p>
+  <p>2번째 왕복은 재고가 5일에 이미 준비됐지만 배가 5일에야 돌아오므로 <b>배가 병목</b>입니다. 반대로 1번째 왕복은 생산이 병목이라 한국에서 1일 기다렸다 출항합니다.</p>
+
+  <h4 style="margin:18px 0 6px">풀이 B — 가장 늦게 준비되는 나라가 출항일을 정한다 (기본 주문의 COST 2번째 왕복)</h4>
+  <p>방문 순서 중국 → 베트남 → 인도네시아 → 일본. 한국에서 각 나라까지 누적 항해 일수(offset)와 준비 완료일:</p>
+  <div class="tw"><table>
+    <tr><th>방문지</th><th class="n">offset (한국에서)</th><th class="n">싣는 양</th><th>준비 완료일</th><th class="n">출항 하한 (준비일−offset)</th></tr>
+    <tr><td>중국</td><td class="n">1일</td><td class="n">3,000K</td><td>올림(3,000÷400)=8일</td><td class="n">7일</td></tr>
+    <tr><td>베트남</td><td class="n">5일 (중국→베트남 4일)</td><td class="n">3,000K</td><td>3,000÷200=15일</td><td class="n"><b>10일</b> ← 최댓값</td></tr>
+    <tr><td>인도네시아</td><td class="n">7일 (베트남→인도네시아 2일)</td><td class="n">3,000K</td><td>3,000÷300=10일</td><td class="n">3일</td></tr>
+    <tr><td>일본</td><td class="n">14일 (인도네시아→일본 7일)</td><td class="n">1,000K</td><td>3 + 올림(1,000÷800)=5일</td><td class="n">−9일</td></tr>
+  </table></div>
+  <p>배가 비는 날(1번째 왕복 귀환 = 5일)도 함께 비교하면 가장 큰 값은 베트남의 10일입니다. 그래서 <b>10일 출항</b>, 도착은 중국 11일 · 베트남 15일 · 인도네시아 17일 · 일본 24일, 마지막 한국 귀환은 24+2 = <b>26일</b>입니다. 이 왕복의 항해는 16일입니다.</p>
+  <p class="cap" style="text-align:left">실제 실행 결과와 일치: 「1호 출항 10 → 중국(11일,3000), 베트남(15일,3000), 인도네시아(17일,3000), 일본(24일,1000) → 귀환 26」 <span class="b ok">확인</span></p>
+
+  <h3>5.4 경로 3가지 비교 (기본 주문: 4개국 각 3,000K, 총 12,000K, 배 3척)</h3>
+  <div class="tw"><table>
+    <tr><th>경로</th><th class="n">소요 일수</th><th class="n">생산 원가</th><th class="n">운항비</th><th class="n">합계</th><th class="n">쓴 배</th></tr>
+    <tr><td>운항비 최소 (COST)</td><td class="n">26일</td><td class="n">78.00억 원</td><td class="n">20.00억 원</td><td class="n"><b>98.00억 원</b></td><td class="n">1척</td></tr>
+    <tr><td>가장 빠르게 (FAST)</td><td class="n"><b>20일</b></td><td class="n">78.00억 원</td><td class="n">32.00억 원</td><td class="n">110.00억 원</td><td class="n">3척</td></tr>
+    <tr><td>가까운 곳부터 (NEAR)</td><td class="n">21일</td><td class="n">78.00억 원</td><td class="n">32.00억 원</td><td class="n">110.00억 원</td><td class="n">3척</td></tr>
+  </table></div>
+  <p class="cap" style="text-align:left">출처: <code>PlannerTest.defaultOrderSummary</code> 실행 결과 <span class="ref">PlannerTest.java:145-156</span> <span class="b ok">확인</span></p>
+  <ul>
+    <li><b>생산 원가는 세 경로가 같습니다.</b> 만들 양과 셀당 원가가 같기 때문입니다. 3,000K × 1,000 × (700+900+550+450)원 = 78.00억 원 <span class="ref">Planner.java:362</span>. 경로는 운항비와 일수만 바꿉니다.</li>
+    <li><b>운항비 = 배의 운항 일수 합계 × 1억 원.</b> COST는 4+16 = 20일, FAST·NEAR는 3척 합 32일입니다 <span class="ref">Planner.java:341</span>.</li>
+    <li><b>FAST의 20일은 하한입니다.</b> 베트남이 3,000K를 만드는 데 15일이 걸리고, 한국 귀환에 5일이 걸리므로 어떤 경로도 15+5 = 20일보다 빠를 수 없습니다. <span class="b guess">추정</span> 규칙에서 계산한 값이며 코드로 증명한 것은 아닙니다.</li>
+  </ul>
+
+  <h3>5.5 일정 그림 (가로축 = 주문일부터 센 일수)</h3>
+  <p><b>운항비 최소 (1척)</b> — 첫 왕복(일본)을 마치고 5일에 돌아와 10일까지 한국에서 기다린 뒤, 두 번째 왕복에서 나머지를 모두 실어 옵니다.</p>
+  <svg viewBox="0 0 700 124" role="img" aria-label="운항비 최소 경로 일정">
+    <line class="ln" x1="70" y1="96" x2="642" y2="96"/>
+    <g class="m s" text-anchor="middle">
+      <line class="ln" x1="70" y1="92" x2="70" y2="100"/><text x="70" y="114">0일</text>
+      <line class="ln" x1="180" y1="92" x2="180" y2="100"/><text x="180" y="114">5일</text>
+      <line class="ln" x1="290" y1="92" x2="290" y2="100"/><text x="290" y="114">10일</text>
+      <line class="ln" x1="400" y1="92" x2="400" y2="100"/><text x="400" y="114">15일</text>
+      <line class="ln" x1="510" y1="92" x2="510" y2="100"/><text x="510" y="114">20일</text>
+      <line class="ln" x1="620" y1="92" x2="620" y2="100"/><text x="620" y="114">25일</text>
+    </g>
+    <text x="10" y="50" style="font-weight:700">1호</text>
+    <rect x="92" y="36" width="88" height="18" rx="4" fill="var(--c1)" opacity=".85"/>
+    <line class="ds" x1="180" y1="45" x2="290" y2="45"/><text x="235" y="38" class="m s" text-anchor="middle">한국 대기(무료)</text>
+    <rect x="290" y="36" width="352" height="18" rx="4" fill="var(--c1)" opacity=".85"/>
+    <g text-anchor="middle" class="s">
+      <circle cx="136" cy="45" r="4.5" fill="var(--c3)"/><text x="136" y="72">일본 2,000K · 3일</text>
+      <circle cx="312" cy="45" r="4.5" fill="var(--c3)"/><text x="312" y="28">중국 3,000K · 11일</text>
+      <circle cx="400" cy="45" r="4.5" fill="var(--c3)"/><text x="400" y="72">베트남 3,000K · 15일</text>
+      <circle cx="444" cy="45" r="4.5" fill="var(--c3)"/><text x="444" y="28">인도네시아 3,000K · 17일</text>
+      <circle cx="598" cy="45" r="4.5" fill="var(--c3)"/><text x="598" y="72">일본 1,000K · 24일</text>
+    </g>
+  </svg>
+  <p class="cap">파란 막대 = 한국 출항~귀환, 주황 점 = 나라 방문(적재량·도착일). 마지막 귀환은 26일.</p>
+
+  <p><b>가장 빠르게 (3척)</b> — 병목인 베트남을 15일에 맞추고, 일본(2번 방문)은 한 척이 전담하며, 인도네시아는 일찍 출항해 따로 다녀옵니다.</p>
+  <svg viewBox="0 0 700 240" role="img" aria-label="가장 빠르게 경로 일정">
+    <line class="ln" x1="70" y1="212" x2="642" y2="212"/>
+    <g class="m s" text-anchor="middle">
+      <line class="ln" x1="70" y1="208" x2="70" y2="216"/><text x="70" y="230">0일</text>
+      <line class="ln" x1="180" y1="208" x2="180" y2="216"/><text x="180" y="230">5일</text>
+      <line class="ln" x1="290" y1="208" x2="290" y2="216"/><text x="290" y="230">10일</text>
+      <line class="ln" x1="400" y1="208" x2="400" y2="216"/><text x="400" y="230">15일</text>
+      <line class="ln" x1="510" y1="208" x2="510" y2="216"/><text x="510" y="230">20일</text>
+      <line class="ln" x1="620" y1="208" x2="620" y2="216"/><text x="620" y="230">25일</text>
+    </g>
+    <text x="10" y="50" style="font-weight:700">1호</text>
+    <rect x="290" y="36" width="220" height="18" rx="4" fill="var(--c1)" opacity=".85"/>
+    <text x="10" y="114" style="font-weight:700">2호</text>
+    <rect x="92" y="100" width="88" height="18" rx="4" fill="var(--c2)" opacity=".85" stroke="var(--card)" stroke-width="2"/>
+    <rect x="180" y="100" width="88" height="18" rx="4" fill="var(--c2)" opacity=".85" stroke="var(--card)" stroke-width="2"/>
+    <text x="10" y="178" style="font-weight:700">3호</text>
+    <rect x="136" y="164" width="308" height="18" rx="4" fill="var(--c4)" opacity=".85"/>
+    <g text-anchor="middle" class="s">
+      <circle cx="312" cy="45" r="4.5" fill="var(--c3)"/><text x="312" y="28">중국 3,000K · 11일</text>
+      <circle cx="400" cy="45" r="4.5" fill="var(--c3)"/><text x="400" y="72">베트남 3,000K · 15일</text>
+      <circle cx="136" cy="109" r="4.5" fill="var(--c3)"/><text x="136" y="92">일본 2,000K · 3일</text>
+      <circle cx="224" cy="109" r="4.5" fill="var(--c3)"/><text x="224" y="136">일본 1,000K · 7일</text>
+      <circle cx="290" cy="173" r="4.5" fill="var(--c3)"/><text x="290" y="156">인도네시아 3,000K · 10일</text>
+    </g>
+  </svg>
+  <p class="cap">1호 10→20일, 2호 1→5일·5→9일, 3호 3→17일. 전체 20일.</p>
+
+  <p><b>가까운 곳부터 (3척)</b> — 한국에서 가까운 나라 순(중국, 일본, 베트남, 인도네시아)으로 배에 번갈아 배정한 결과입니다. 1호가 중국+인도네시아를 맡아 한 번에 도는 구성이라 FAST보다 하루 더 걸립니다.</p>
+  <svg viewBox="0 0 700 240" role="img" aria-label="가까운 곳부터 경로 일정">
+    <line class="ln" x1="70" y1="212" x2="642" y2="212"/>
+    <g class="m s" text-anchor="middle">
+      <line class="ln" x1="70" y1="208" x2="70" y2="216"/><text x="70" y="230">0일</text>
+      <line class="ln" x1="180" y1="208" x2="180" y2="216"/><text x="180" y="230">5일</text>
+      <line class="ln" x1="290" y1="208" x2="290" y2="216"/><text x="290" y="230">10일</text>
+      <line class="ln" x1="400" y1="208" x2="400" y2="216"/><text x="400" y="230">15일</text>
+      <line class="ln" x1="510" y1="208" x2="510" y2="216"/><text x="510" y="230">20일</text>
+      <line class="ln" x1="620" y1="208" x2="620" y2="216"/><text x="620" y="230">25일</text>
+    </g>
+    <text x="10" y="50" style="font-weight:700">1호</text>
+    <rect x="224" y="36" width="308" height="18" rx="4" fill="var(--c1)" opacity=".85"/>
+    <text x="10" y="114" style="font-weight:700">2호</text>
+    <rect x="92" y="100" width="88" height="18" rx="4" fill="var(--c2)" opacity=".85" stroke="var(--card)" stroke-width="2"/>
+    <rect x="180" y="100" width="88" height="18" rx="4" fill="var(--c2)" opacity=".85" stroke="var(--card)" stroke-width="2"/>
+    <text x="10" y="178" style="font-weight:700">3호</text>
+    <rect x="290" y="164" width="220" height="18" rx="4" fill="var(--c4)" opacity=".85"/>
+    <g text-anchor="middle" class="s">
+      <circle cx="246" cy="45" r="4.5" fill="var(--c3)"/><text x="246" y="28">중국 3,000K · 8일</text>
+      <circle cx="378" cy="45" r="4.5" fill="var(--c3)"/><text x="378" y="72">인도네시아 3,000K · 14일</text>
+      <circle cx="136" cy="109" r="4.5" fill="var(--c3)"/><text x="136" y="92">일본 2,000K · 3일</text>
+      <circle cx="224" cy="109" r="4.5" fill="var(--c3)"/><text x="224" y="136">일본 1,000K · 7일</text>
+      <circle cx="400" cy="173" r="4.5" fill="var(--c3)"/><text x="400" y="156">베트남 3,000K · 15일</text>
+    </g>
+  </svg>
+  <p class="cap">1호 7→21일, 2호 1→5일·5→9일, 3호 10→20일. 전체 21일.</p>
+
+  <h3>5.6 일별 생산과 안전장치 <span class="ref">Planner.java:386-411</span></h3>
+  <p>경로가 정해지면 하루씩 진행하며 <code>재고</code>와 <code>생산량</code> 배열을 채웁니다. 이 값이 화면의 일별 표와 지도 애니메이션(<code>stockAt</code> <span class="ref">anim.js:127-134</span>)에 그대로 쓰입니다.</p>
+  <p>이때 <b>스스로 검산</b>합니다. 배가 가져간 양이 그 시점 재고와 다르거나(395-399), 주문을 모두 수거하지 못했으면(408-410) <code>IllegalStateException</code> 을 던집니다. 일정 계산에 버그가 있으면 조용히 틀린 결과를 내는 대신 바로 드러나게 하려는 장치입니다.</p>
+</section>
+
+<!-- ============================================================ 6 -->
+<section id="s6">
+  <h2><span class="no">6</span>데이터 모델</h2>
+  <p class="lead">테이블 5개. 연관관계(JPA 매핑)는 없고, 값으로만 참조합니다.</p>
+
+  <div class="grid2">
+    <div class="card"><h4>Order <span class="ref">Order.java:15-57</span></h4>
+      <p class="sub">확정된 주문 (테이블명 <code>orders</code>)</p>
+      <ul>
+        <li><code>id</code>, <code>confirmedAt</code>, <code>createdBy</code></li>
+        <li><code>totalK</code>(총 수량), <code>routeType</code>/<code>routeLabel</code></li>
+        <li><code>totalDays</code>, <code>productionCost</code>, <code>shippingCost</code>, <code>totalCost</code></li>
+        <li><code>status</code>(문자열 enum), <code>memo</code>(1000자)</li>
+        <li><code>planJson</code>(Lob): 스냅샷</li>
+        <li><code>version</code>: 낙관적 락</li>
+      </ul></div>
+    <div class="card"><h4>OrderStatusHistory <span class="ref">OrderStatusHistory.java:13-36</span></h4>
+      <p class="sub">상태가 바뀔 때마다 한 줄</p>
+      <ul>
+        <li><code>orderId</code>(Long, <b>FK 아님</b>)</li>
+        <li><code>fromStatus</code>(최초에는 null), <code>toStatus</code></li>
+        <li><code>changedBy</code>, <code>changedAt</code></li>
+      </ul></div>
+    <div class="card"><h4>Factory <span class="ref">Factory.java:10-28</span></h4>
+      <p class="sub">공장 값. 기본 키가 <code>country</code></p>
+      <ul>
+        <li><code>maxDaily</code>, <code>stockLimit</code>(K)</li>
+        <li><code>unitCost</code>(셀당 원가, 원)</li>
+      </ul></div>
+    <div class="card"><h4>Route <span class="ref">Route.java:14-31</span></h4>
+      <p class="sub">나라 쌍의 항해 일수</p>
+      <ul>
+        <li><code>fromCountry</code>, <code>toCountry</code>, <code>days</code></li>
+        <li>양방향이라 쌍당 1건, (from,to) 유일 제약</li>
+      </ul></div>
+    <div class="card"><h4>Setting <span class="ref">Setting.java:9-27</span></h4>
+      <p class="sub">한 행만 존재(id=1)</p>
+      <ul>
+        <li><code>shipCount</code>, <code>shipDailyCostWon</code>(원)</li>
+        <li><code>masterVersion</code>: 마스터 저장 때마다 +1</li>
+        <li><code>lockVersion</code>: JPA 낙관적 락</li>
+      </ul></div>
+  </div>
+
+  <h3>알아 두면 좋은 점</h3>
+  <ul>
+    <li><b>스냅샷</b>: 주문 확정 시 <code>StoredPlan(master, orders, visits, plan)</code> 을 JSON으로 <code>planJson</code> 에 저장합니다 <span class="ref">BatteryService.java:241-245</span>, <span class="ref">StoredPlan.java:7</span>. 이후 마스터를 바꿔도 확정한 계획이 변하지 않는다는 것을 테스트가 확인합니다 <span class="ref">OrderFlowTests.java:140-163</span>.</li>
+    <li><b>마스터 버전</b>: 마스터를 저장할 때마다 <code>masterVersion</code> 이 올라가고 <span class="ref">Setting.java:58-60</span>, 시뮬레이션 뒤에 마스터가 바뀌었는지 가려내는 데 씁니다 <span class="ref">BatteryService.java:228</span>.</li>
+    <li><b>마스터 저장은 전부 아니면 전무</b>: 하나라도 잘못된 값이 있으면 아무것도 저장하지 않고 이유를 모아 알립니다 <span class="ref">BatteryService.java:108-156</span>. 허용 범위: 배 1~4척, 생산량·재고 상한 1~1,000,000, 셀당 원가 1~100,000,000, 항해 일수 1~365.</li>
+    <li><b>금액 단위</b>: DB와 계산은 모두 원 단위 <code>long</code>이고, 화면에서만 억 원으로 나눕니다 <span class="ref">common.js:7-8</span>, <span class="ref">Order.java:151-153</span>.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ 7 -->
+<section id="s7">
+  <h2><span class="no">7</span>마스터 기본값과 설명 대조</h2>
+  <p class="lead">처음 앱을 띄울 때 들어가는 값과, 대화로 받은 도메인 설명을 비교합니다.</p>
+
+  <h3>코드의 초기값 <span class="ref">BatteryService.java:69-85</span></h3>
+  <div class="grid2">
+    <div class="tw"><table>
+      <tr><th>나라</th><th class="n">하루 최대(K)</th><th class="n">재고 상한(K)</th><th class="n">셀당 원가(원)</th></tr>
+      <tr><td>중국</td><td class="n">400</td><td class="n">4,000</td><td class="n">700</td></tr>
+      <tr><td>일본</td><td class="n">800</td><td class="n">2,000</td><td class="n">900</td></tr>
+      <tr><td>베트남</td><td class="n">200</td><td class="n">10,000</td><td class="n">550</td></tr>
+      <tr><td>인도네시아</td><td class="n">300</td><td class="n">7,000</td><td class="n">450</td></tr>
+    </table></div>
+    <div class="tw"><table>
+      <tr><th>항로 (양방향)</th><th class="n">항해 일수</th></tr>
+      <tr><td>한국 - 중국</td><td class="n">1일</td></tr>
+      <tr><td>한국 - 일본</td><td class="n">2일</td></tr>
+      <tr><td>한국 - 베트남</td><td class="n">5일</td></tr>
+      <tr><td>한국 - 인도네시아</td><td class="n">7일</td></tr>
+      <tr><td>중국 - 일본</td><td class="n">2일</td></tr>
+      <tr><td>중국 - 베트남</td><td class="n">4일</td></tr>
+      <tr><td>중국 - 인도네시아</td><td class="n">6일</td></tr>
+      <tr><td>일본 - 베트남</td><td class="n">5일</td></tr>
+      <tr><td>일본 - 인도네시아</td><td class="n">7일</td></tr>
+      <tr><td>베트남 - 인도네시아</td><td class="n">2일</td></tr>
+    </table></div>
+  </div>
+  <p>배 3척, 척당 일 운항비 1억 원(= 100,000,000원) <span class="ref">BatteryService.java:35, 85</span>.</p>
+
+  <h3>대화로 받은 설명과 코드 비교</h3>
+  <div class="tw"><table>
+    <tr><th>항목</th><th>설명(대화)</th><th>코드</th><th>판정</th></tr>
+    <tr><td>제품·단위</td><td>2170 셀, K = 1,000개</td><td>수량은 모두 K 단위 정수 <span class="ref">Order.java:29-30</span></td><td><span class="b ok">일치</span></td></tr>
+    <tr><td>공장</td><td>중국·일본·베트남·인도네시아 4곳, 한국 본사</td><td><code>Country</code> 5개, 공장은 한국 제외 <span class="ref">Country.java:6-30</span></td><td><span class="b ok">일치</span></td></tr>
+    <tr><td>주문 즉시 생산·창고 보관</td><td>주문이 들어오면 가능한 빨리 생산</td><td>0일차에 모든 공장 동시 시작 <span class="ref">Planner.java:20</span></td><td><span class="b ok">일치</span></td></tr>
+    <tr><td>일일 최대 생산량</td><td>공장마다 정해짐(예시 0.1K/일)</td><td>초기값 200~800K/일 <span class="ref">BatteryService.java:69-72</span></td><td><span class="b guess">예시값이라 판단 보류</span></td></tr>
+    <tr><td>생산 원가</td><td>셀당 500~1,000원, 국가별 차이</td><td>인도네시아 초기값 <b>450원</b> <span class="ref">BatteryService.java:72</span>. 입력 허용 범위는 1~100,000,000원 <span class="ref">:139</span></td><td><span class="b diff">설명과 다름</span> (범위 밖)</td></tr>
+    <tr><td>공장 운영비</td><td>국가별로 다름 (추가 개발 필요)</td><td>코드 전체에 "운영비" 0건. 총비용 = 생산비 + 운항비뿐 <span class="ref">Planner.java:367</span></td><td><span class="b diff">미구현</span></td></tr>
+    <tr><td>재고 보관 용량</td><td>국가별 최대 보관 수량이 다름</td><td><code>stockLimit</code> 국가별 <span class="ref">Factory.java:22-24</span></td><td><span class="b ok">일치</span></td></tr>
+    <tr><td>한국 재고</td><td>무제한</td><td>한국은 재고·상한을 모델링하지 않음(공장 목록에서 제외)</td><td><span class="b ok">일치</span></td></tr>
+    <tr><td>선박 수·비용</td><td>1~4척, 하루 척당 약 1억 원</td><td>1~4 검증 <span class="ref">BatteryService.java:36, 116</span>, 초기 3척·1억 원</td><td><span class="b ok">일치</span></td></tr>
+    <tr><td>한국 정박 비용</td><td>정박 중 비용 없음</td><td>운항 일수만 비용 계산, 한국 대기는 제외 <span class="ref">Planner.java:336-341</span></td><td><span class="b ok">일치</span></td></tr>
+    <tr><td>선박 적재량</td><td>충분</td><td>배 용량 개념이 없음(적재량은 창고 재고가 결정)</td><td><span class="b ok">일치</span></td></tr>
+    <tr><td>항해 일수</td><td>(설명에 없음)</td><td>위 표의 값은 코드에만 있는 값</td><td><span class="b guess">출처 불명</span></td></tr>
+  </table></div>
+  <div class="note warn">
+    <p>"설명과 다름"과 "미구현"은 <b>오류라고 단정하지 않습니다.</b> 이 시스템은 실습용이라 값이 불완전할 수 있고, 공장 운영비는 설명에서 스스로 "추가 개발 필요"라고 했습니다. 이후 미션에서 다룰 후보로 기록해 둡니다.</p>
+  </div>
+</section>
+
+<!-- ============================================================ 8 -->
+<section id="s8">
+  <h2><span class="no">8</span>읽는 순서 가이드</h2>
+  <p class="lead">전체를 위에서부터 읽기보다, 아래 순서를 권합니다.</p>
+  <ol class="steps">
+    <li><b>앱을 먼저 써 봅니다.</b> IntelliJ에서 <code>DemoApplication</code> 실행 → <code>localhost:8080</code> → <code>admin</code>/<code>admin</code>. 주문 추가에서 게이지를 움직여 시뮬레이션하고, 경로 3가지와 지도 애니메이션을 봅니다.</li>
+    <li><b><code>Plan.java</code>, <code>Master.java</code></b> (합쳐서 50줄). 계산의 입력과 출력이 어떤 모양인지부터 봅니다.</li>
+    <li><b><code>PlannerTest.java</code></b>. 단순한 사례(중국 400K, 베트남 2,000K)가 규칙을 가장 쉽게 보여 줍니다.</li>
+    <li><b><code>Planner.java</code></b>. 먼저 클래스 주석(15-26)과 <code>plan()</code>(49-79), 그다음 <code>schedule()</code>(295-344)을 읽습니다. 후보 생성(101-284)은 나중에 읽어도 됩니다.</li>
+    <li><b><code>BatteryService.java</code></b>. <code>simulate</code>(190) → <code>confirm</code>(225) → <code>changeStatus</code>(278) 순서로 봅니다.</li>
+    <li><b><code>AppController.java</code></b>와 화면. 서비스를 호출하는 얇은 층입니다. 그다음 <code>order-new.js</code>로 화면 쪽 흐름을 확인합니다.</li>
+    <li>마지막으로 엔티티와 <code>anim.js</code>.</li>
+  </ol>
+
+  <h3>테스트가 보장하는 것 <span class="b ok">22개 모두 통과</span> (2026-10-21)</h3>
+  <div class="grid2">
+    <div class="tw"><table>
+      <tr><th colspan="2">PlannerTest (12개)</th></tr>
+      <tr><td>방문 횟수</td><td>= 올림(주문÷재고 상한) <span class="ref">:44-51</span></td></tr>
+      <tr><td>수거량</td><td>모든 경로가 주문한 만큼 정확히 수거, 합계 = 생산비+운항비 <span class="ref">:53-63</span></td></tr>
+      <tr><td>배 배정</td><td>한 나라는 한 척만 방문 <span class="ref">:65-74</span></td></tr>
+      <tr><td>생산 원가</td><td>= 셀 수 × 셀당 원가 <span class="ref">:76-80</span></td></tr>
+      <tr><td>단순 주문</td><td>중국 400K → 도착 1일, 총 2일, 운항비 2억 원 <span class="ref">:82-91</span></td></tr>
+      <tr><td>늦게 출항</td><td>베트남 2,000K → 5일 출항·10일 도착·15일 귀환 <span class="ref">:93-102</span></td></tr>
+      <tr><td>여러 번 수거</td><td>일본 4,500K → 2,000·2,000·500K <span class="ref">:104-111</span></td></tr>
+      <tr><td>재고 상한</td><td>재고가 상한을 넘지 않음 <span class="ref">:113-120</span></td></tr>
+      <tr><td>경로 성격</td><td>COST가 가장 싸고 FAST가 가장 빠름 <span class="ref">:122-130</span></td></tr>
+      <tr><td>배 수·빈 주문</td><td>가용 척수 이하 사용, 빈 주문은 거부 <span class="ref">:132-143</span></td></tr>
+      <tr><td>요약 출력</td><td>기본 주문의 3경로를 출력(5.4의 수치 출처) <span class="ref">:145-156</span></td></tr>
+    </table></div>
+    <div class="tw"><table>
+      <tr><th colspan="2">OrderFlowTests (9개) + DemoApplicationTests (1개)</th></tr>
+      <tr><td>로그인</td><td>비로그인은 /login 이동·API 401, 틀린 비밀번호 거부 <span class="ref">:44-58</span></td></tr>
+      <tr><td>화면</td><td>목록·주문 추가·마스터 화면이 렌더링됨 <span class="ref">:60-66</span></td></tr>
+      <tr><td>시뮬레이션 API</td><td>옵션 3개, 방문 횟수, 마스터 포함 <span class="ref">:68-78</span></td></tr>
+      <tr><td>입력 검증</td><td>빈 주문은 400과 이유 <span class="ref">:80-86</span></td></tr>
+      <tr><td>확정→상태 흐름</td><td>확정→완료 불가, 오래된 version 거부, 이력 3건, 완료는 최종 <span class="ref">:100-129</span></td></tr>
+      <tr><td>마스터 충돌</td><td>버전이 다르면 409 <span class="ref">:131-138</span></td></tr>
+      <tr><td>마스터 수정</td><td>저장해도 확정된 계획 불변, 운항비 반영 <span class="ref">:140-163</span></td></tr>
+      <tr><td>잘못된 마스터</td><td>저장되지 않음 <span class="ref">:165-171</span></td></tr>
+      <tr><td>컨텍스트</td><td>앱이 뜨는지 확인(DemoApplicationTests)</td></tr>
+    </table></div>
+  </div>
+
+  <h3>테스트가 다루지 않는 곳 <span class="b guess">추정</span></h3>
+  <ul>
+    <li>주문 <b>취소</b>(삭제)와 그 뒤 이력 상태를 확인하는 테스트는 보이지 않습니다.</li>
+    <li>일정이 어긋났을 때 던지는 예외(5.6)를 일부러 일으키는 테스트도 보이지 않습니다.</li>
+    <li>화면 JS(애니메이션·게이지)는 자동 테스트가 없습니다.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ 9 -->
+<section id="s9">
+  <h2><span class="no">9</span>팀 합의 필요 항목</h2>
+  <p class="lead">대화로 받은 시스템 설명(PRD 1~4번)에 값이나 규칙이 없거나 코드와 다른 항목입니다. 코드는 이 항목들을 임시 값이나 가정으로 구현했을 수 있어, 팀이 확정해야 합니다.</p>
+  <div class="note warn">
+    <p>이 표는 <b>시스템 요구사항</b>만 다룹니다. 이 시스템은 실습용이라 값이 불완전할 수 있으므로, "코드와 다르다"는 것이 곧 코드 오류라는 뜻은 아닙니다. 코드 열의 값은 모두 위 장들에서 확인한 사실이고, 오른쪽 "합의할 내용"만 제안입니다.</p>
+  </div>
+  <div class="tw"><table>
+    <tr><th>항목</th><th>PRD(대화로 받은 설명)</th><th>현재 코드</th><th>합의할 내용</th></tr>
+    <tr><td>공장 운영비</td>
+      <td>국가별로 다름. "추가 개발 필요". 값·계산 기준 없음 <span class="b diff">미구현</span></td>
+      <td>없음. 총비용 = 생산비 + 운항비 <span class="ref">Planner.java:367</span></td>
+      <td>무엇에 얼마를 부과하는지(기간·생산량 등), 국가별 값, 총비용과 경로 선택에 포함할지</td></tr>
+    <tr><td>셀당 생산원가</td>
+      <td>500~1,000원, 국가별 차이 <span class="b diff">설명과 다름</span></td>
+      <td>중국 700 · 일본 900 · 베트남 550 · 인도네시아 <b>450</b>원 <span class="ref">BatteryService.java:69-72</span>. 입력 허용 범위는 1~100,000,000원 <span class="ref">:139</span></td>
+      <td>인도네시아 450원을 어떻게 볼지, 500~1,000원 범위를 입력 검증에 반영할지</td></tr>
+    <tr><td>일일 최대 생산량</td>
+      <td>공장마다 정해짐. 예시 0.1K/일뿐 <span class="b guess">값 없음</span></td>
+      <td>중국 400 · 일본 800 · 베트남 200 · 인도네시아 300K/일 <span class="ref">BatteryService.java:69-72</span></td>
+      <td>국가별 실제 값</td></tr>
+    <tr><td>재고 보관 용량(상한)</td>
+      <td>국가별로 다름. 한국은 무제한 <span class="b guess">값 없음</span></td>
+      <td>중국 4,000 · 일본 2,000 · 베트남 10,000 · 인도네시아 7,000K <span class="ref">BatteryService.java:69-72</span></td>
+      <td>국가별 실제 값</td></tr>
+    <tr><td>나라 간 항해 일수</td>
+      <td>언급 없음 <span class="b guess">설명 없음</span></td>
+      <td>10개 항로 값이 초기 데이터로 존재 <span class="ref">BatteryService.java:74-83</span></td>
+      <td>항로별 실제 값과 출처</td></tr>
+    <tr><td>선박 척수</td>
+      <td>1~4척을 임차. 기본 몇 척인지는 없음</td>
+      <td>초기 3척, 허용 1~4 <span class="ref">BatteryService.java:36, 85</span></td>
+      <td>기본 척수</td></tr>
+    <tr><td>한국 도착 후 처리 시간</td>
+      <td>한국 정박 중에는 비용 없음. 하역·재출항에 걸리는 시간은 언급 없음 <span class="b guess">설명 없음</span></td>
+      <td>한국에 도착한 날 바로 다음 왕복을 출항할 수 있음(소요 0일로 가정) <span class="ref">Planner.java:318, 337</span></td>
+      <td>하역·검수·재출항 소요 시간을 둘지</td></tr>
+    <tr><td>한 나라를 방문하는 배</td>
+      <td>언급 없음 <span class="b guess">설명 없음</span></td>
+      <td>한 나라는 한 척만 방문 <span class="ref">Planner.java:21</span>, 테스트로 보장 <span class="ref">PlannerTest.java:65-74</span></td>
+      <td>이 제약을 유지할지(여러 척이 같은 나라를 나눠 방문하면 더 빨라질 수 있음 <span class="b guess">추정</span>)</td></tr>
+    <tr><td>재고가 가득 찼을 때</td>
+      <td>주문이 들어오면 가능한 빨리 생산해 창고에 보관. 가득 찬 뒤의 동작은 언급 없음</td>
+      <td>0일차에 모든 공장이 동시에 시작하고, 상한에 닿으면 배가 가져가기 전까지 생산을 멈춤 <span class="ref">Planner.java:20, 402</span></td>
+      <td>생산 중단이 맞는지, 다른 방식이 있는지</td></tr>
+    <tr><td>경로 종류와 동점 처리</td>
+      <td>언급 없음 <span class="b guess">설명 없음</span></td>
+      <td>운항비 최소 / 가장 빠르게 / 가까운 곳부터 3가지. 동점이면 COST는 더 빠른 쪽, FAST는 더 싼 쪽 <span class="ref">Planner.java:29-31, 63-70</span></td>
+      <td>제공할 경로 종류와 비교 기준, 동점 우선순위</td></tr>
+    <tr><td>주문 수량 상한</td>
+      <td>언급 없음 <span class="b guess">설명 없음</span></td>
+      <td>총 100,000K 이하 <span class="ref">Planner.java:33</span>, <span class="ref">BatteryService.java:212-214</span></td>
+      <td>상한이 필요한지, 값은 얼마인지</td></tr>
+    <tr><td>주문 상태와 취소</td>
+      <td>언급 없음 <span class="b guess">설명 없음</span></td>
+      <td>확정 → 진행 → 완료, 확정·진행에서 취소 가능. 취소하면 주문 행을 삭제 <span class="ref">OrderStatus.java:21-27</span>, <span class="ref">BatteryService.java:295-297</span></td>
+      <td>상태 종류와 전이 규칙, 취소한 주문을 삭제할지 상태로 남길지</td></tr>
+  </table></div>
+  <p class="cap" style="text-align:left">7장의 "설명과 코드 비교" 표가 일치 여부를 보여 준다면, 이 표는 그중 팀이 <b>결정해야 하는 것</b>만 추린 것입니다.</p>
+</section>
+
+<footer>
+  battery-code-html Skill로 생성 · 수치 출처: PlannerTest 실행 결과(2026-10-21), 모든 줄 번호는 <code>main</code> f7a43aa 기준
+</footer>
+</div>
+</body>
+</html>

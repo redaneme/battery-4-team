@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배터리 주문 계획 쉬운 안내서</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1f2933; --muted: #637083; --line: #dde2e8;
+    --accent: #1f6feb; --accent-soft: #e4eefe; --ok: #1a7f4b; --ok-soft: #e0f4e9;
+    --warn: #b4540a; --warn-soft: #fdebd8; --bad: #c0352b; --bad-soft: #fbe3e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161c; --card: #1b212a; --ink: #e6ebf1; --muted: #99a5b4; --line: #2d3641;
+      --accent: #5b9bff; --accent-soft: #1d2d47; --ok: #4cc58a; --ok-soft: #173326;
+      --warn: #f0a15a; --warn-soft: #3a2a17; --bad: #ff7b70; --bad-soft: #3d1f1d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; line-height: 1.65; }
+  header { padding: 28px 16px 8px; max-width: 960px; margin: 0 auto; }
+  header h1 { margin: 0 0 4px; font-size: 24px; }
+  header p { margin: 0; color: var(--muted); }
+  main { max-width: 960px; margin: 0 auto; padding: 0 16px 48px; }
+
+  [role=tablist] { display: flex; gap: 6px; margin: 18px 0 0; border-bottom: 2px solid var(--line); }
+  [role=tab] { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600;
+    padding: 10px 16px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  [role=tab][aria-selected=true] { color: var(--accent); border-bottom-color: var(--accent); }
+  [role=tab]:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, g[tabindex]:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px; }
+  [role=tabpanel] { padding-top: 20px; }
+  [role=tabpanel][hidden] { display: none; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 8px; font-size: 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .lead { font-size: 16px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .steps { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; margin: 10px 0 0; padding: 0; list-style: none; }
+  .steps li { flex: 1 1 150px; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; position: relative; }
+  .steps b { display: block; }
+  .steps li:not(:last-child)::after { content: "→"; position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-weight: 700; }
+  @media (max-width: 720px) { .steps li::after { display: none; } }
+
+  button.btn { font: inherit; font-weight: 600; border: 1px solid var(--accent); background: var(--accent); color: #fff;
+    border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  button.btn.ghost { background: transparent; color: var(--accent); }
+  button.btn.danger { background: var(--bad); border-color: var(--bad); }
+  button.btn:disabled { opacity: .45; cursor: not-allowed; }
+  .nav-next { display: flex; justify-content: flex-end; margin-top: 8px; }
+
+  /* 지도 */
+  svg.map { width: 100%; height: auto; background: var(--accent-soft); border-radius: 12px; }
+  .route { stroke: var(--muted); stroke-width: 1.5; opacity: .35; }
+  .route.on { stroke: var(--accent); stroke-width: 3; opacity: 1; }
+  .rlabel { font-size: 13px; font-weight: 700; fill: var(--accent); paint-order: stroke; stroke: var(--accent-soft); stroke-width: 4px; }
+  g.node { cursor: pointer; }
+  g.node circle { fill: var(--card); stroke: var(--muted); stroke-width: 2.5; }
+  g.node.sel circle { stroke: var(--accent); stroke-width: 4; fill: var(--accent); }
+  g.node text { font-size: 14px; font-weight: 700; fill: var(--ink); text-anchor: middle; pointer-events: none; }
+  g.node.sel text.name { fill: var(--accent); }
+  g.node text.icon { font-size: 16px; }
+  table.t { border-collapse: collapse; width: 100%; font-size: 14px; }
+  table.t th, table.t td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  table.t th { color: var(--muted); font-weight: 600; width: 46%; }
+
+  /* 시뮬레이션 */
+  .inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  label.f { display: block; font-size: 14px; font-weight: 600; }
+  label.f span.hint { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+  input[type=number], select { width: 100%; font: inherit; padding: 8px 10px; margin-top: 4px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--bg); color: var(--ink); }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 14px; }
+  .kpi { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .kpi .v { font-size: 22px; font-weight: 800; }
+  .kpi .l { font-size: 12px; color: var(--muted); }
+  .ship { margin: 10px 0 4px; font-weight: 700; font-size: 14px; }
+  .lane { position: relative; height: 34px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .trip { position: absolute; top: 4px; bottom: 4px; background: var(--accent-soft); border: 2px solid var(--accent);
+    border-radius: 6px; }
+  .stop { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+  .axis { position: relative; height: 18px; font-size: 11px; color: var(--muted); }
+  .axis span { position: absolute; transform: translateX(-50%); }
+  .tripnote { font-size: 13px; color: var(--muted); margin: 2px 0 0; }
+  .msg { padding: 10px 12px; border-radius: 8px; font-size: 14px; }
+  .msg.bad { background: var(--bad-soft); color: var(--bad); }
+  .msg.ok { background: var(--ok-soft); color: var(--ok); }
+  .msg.warn { background: var(--warn-soft); color: var(--warn); }
+
+  /* 주문 진행 */
+  .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 4px; }
+  .pill { padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; background: var(--bg); border: 2px solid var(--line); color: var(--muted); }
+  .pill.cur { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .pill.done { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+  .pill.cancel { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+  .person { border: 2px solid var(--line); border-radius: 12px; padding: 14px; background: var(--card); }
+  .person h3 { margin-top: 0; }
+  .person .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  ol.log { margin: 6px 0 0; padding-left: 20px; font-size: 14px; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); }
+</style>
+</head>
+<body>
+<header>
+  <h1>배터리 주문 계획, 쉽게 이해하기</h1>
+  <p>3단계로 나눠 눈으로 보고 직접 눌러 보며 이해합니다. 앞에서부터 차례로 보세요.</p>
+</header>
+
+<main>
+  <div role="tablist" aria-label="이해 단계">
+    <button role="tab" id="tab-1" aria-controls="panel-1" aria-selected="true">① 무엇을 하는 서비스인가</button>
+    <button role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false" tabindex="-1">② 운송 계획은 어떻게 짜이나</button>
+    <button role="tab" id="tab-3" aria-controls="panel-3" aria-selected="false" tabindex="-1">③ 주문은 어떻게 진행되나</button>
+  </div>
+
+  <!-- ===================== 1단계 ===================== -->
+  <section role="tabpanel" id="panel-1" aria-labelledby="tab-1">
+    <div class="card">
+      <h2>한 줄 요약</h2>
+      <p class="lead">한국 본사가 <b>중국·일본·베트남·인도네시아</b> 공장에 배터리 셀을 만들게 하고, <b>배</b>로 한국까지 실어 오는 일정과 비용을 미리 계산해 주는 서비스입니다.</p>
+      <ul class="steps">
+        <li><b>1. 주문 넣기</b>나라별로 몇 개 만들지 입력</li>
+        <li><b>2. 계획 보기</b>며칠 걸리고 얼마 드는지 확인</li>
+        <li><b>3. 주문 확정</b>마음에 드는 안을 골라 확정</li>
+        <li><b>4. 진행 관리</b>확정 → 진행 → 완료 추적</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>나라와 뱃길 살펴보기</h2>
+      <p class="muted small" style="margin-top:0">지도의 나라를 눌러 보세요. 그 나라 공장의 능력과, 다른 나라까지 배로 며칠 걸리는지 보입니다.</p>
+      <div class="grid2">
+        <svg class="map" id="map" viewBox="0 0 560 360" role="group" aria-label="나라와 뱃길 지도"></svg>
+        <div id="countryInfo"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>꼭 알아둘 낱말 3개</h2>
+      <table class="t">
+        <tr><th>K (케이)</th><td>천 개 단위입니다. 3K = 배터리 셀 3,000개.</td></tr>
+        <tr><th>재고 상한</th><td>공장이 배를 기다리며 쌓아 둘 수 있는 최대 수량. 가득 차면 생산을 멈춥니다.</td></tr>
+        <tr><th>기준 정보</th><td>공장 능력, 뱃길 일수, 배 척수, 운항비처럼 계획 계산의 바탕이 되는 값. 관리 화면에서 바꿀 수 있습니다.</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h2>사용 약속과 입력 한도</h2>
+      <table class="t">
+        <tr><th>로그인</th><td>로그인한 사람만 쓸 수 있습니다. 로그인하지 않으면 로그인 화면만 보입니다.</td></tr>
+        <tr><th>주문 한도</th><td>총 주문은 1K 이상 100,000K 이하. 나라별 수량은 0 이상.</td></tr>
+        <tr><th>기준 정보 한도</th><td>배는 1~4척, 뱃길은 1~365일. 하나라도 잘못되면 아무것도 저장되지 않고 이유가 모두 안내됩니다.</td></tr>
+        <tr><th>확정 때 다시 계산</th><td>확정 순간에 시스템이 같은 주문으로 다시 계산합니다. 화면에 보인 값을 그대로 믿지 않습니다.</td></tr>
+        <tr><th>메모</th><td>확정할 때 메모를 남길 수 있고, 1,000자까지입니다.</td></tr>
+      </table>
+    </div>
+    <div class="nav-next"><button class="btn" data-goto="2">다음: 계획 짜기 체험 →</button></div>
+  </section>
+
+  <!-- ===================== 2단계 ===================== -->
+  <section role="tabpanel" id="panel-2" aria-labelledby="tab-2" hidden>
+    <div class="card">
+      <h2>이렇게 계획이 만들어집니다</h2>
+      <ul style="margin:0; padding-left:20px">
+        <li>모든 공장이 <b>0일차에 동시에 생산을 시작</b>합니다. 하루 생산량은 공장의 하루 최대치까지, 재고 상한까지 입니다.</li>
+        <li>배는 도착한 날의 <b>재고를 전부 싣고</b> 갑니다.</li>
+        <li>재고 상한보다 많이 주문하면 <b>여러 번 나눠 가져옵니다</b>. 그때는 한국에 내려놓고 다시 출항합니다.</li>
+        <li>배는 재고가 찰 때까지 한국에서 기다렸다가 <b>맞춰서 늦게 출항</b>합니다. 한국에서 기다리는 건 무료입니다.</li>
+        <li>실제 서비스는 <b>세 가지 안</b>(운항비 최소 / 가장 빠르게 / 가까운 곳부터)을 보여 줍니다. 여기서는 이해를 돕기 위해 <b>"가까운 곳부터"</b> 안만 직접 계산해 봅니다.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>직접 넣어 보기</h2>
+      <div class="inputs" id="simInputs"></div>
+      <div class="inputs" style="margin-top:12px">
+        <label class="f">배 척수<span class="hint">1~4척, 많을수록 나눠서 운반</span>
+          <select id="shipCount"><option>1</option><option>2</option><option selected>3</option><option>4</option></select></label>
+        <div style="display:flex; align-items:flex-end; gap:8px">
+          <button class="btn ghost" id="simReset" type="button">예시값으로 되돌리기</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" aria-live="polite">
+      <h2>계산 결과</h2>
+      <div id="simMsg"></div>
+      <div id="simOut"></div>
+    </div>
+    <p class="muted small">※ 학습용 계산입니다. 기본 기준 정보(공장 능력, 뱃길 일수, 척당 하루 운항비 1억 원)를 그대로 썼습니다.</p>
+    <div class="nav-next"><button class="btn" data-goto="3">다음: 주문 진행 체험 →</button></div>
+  </section>
+
+  <!-- ===================== 3단계 ===================== -->
+  <section role="tabpanel" id="panel-3" aria-labelledby="tab-3" hidden>
+    <div class="card">
+      <h2>주문의 한 살이</h2>
+      <p style="margin-top:0">확정된 주문은 정해진 순서로만 상태가 바뀝니다. 건너뛰거나 되돌릴 수 없습니다.</p>
+      <div class="flow" aria-hidden="true">
+        <span class="pill">확정</span> → <span class="pill">진행</span> → <span class="pill">완료</span>
+        <span class="muted small">(확정·진행 단계에서는 <b>취소</b>도 가능, 완료·취소 후에는 더 바꿀 수 없음)</span>
+      </div>
+      <p class="small muted" style="margin-bottom:0">상태가 바뀔 때마다 "누가, 언제, 무엇에서 무엇으로" 바꿨는지 이력이 남습니다.</p>
+    </div>
+
+    <div class="card">
+      <h2>체험: 두 담당자가 같은 주문을 동시에 본다면?</h2>
+      <p class="muted small" style="margin-top:0">두 사람은 같은 시점의 화면을 열어 둔 상태입니다. 한 사람이 상태를 바꾼 뒤, 다른 사람(옛 화면)이 바꾸려 하면 어떻게 되는지 눌러 보세요.</p>
+      <div class="card" style="background:var(--bg)">
+        <b>실제 주문 상태:</b> <span id="realState"></span>
+      </div>
+      <div class="grid2">
+        <div class="person" id="pA"></div>
+        <div class="person" id="pB"></div>
+      </div>
+      <div style="margin-top:12px"><button class="btn ghost" id="ordReset" type="button">처음부터 다시</button></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h3>변경 이력</h3><ol class="log" id="histLog"></ol></div>
+      <div class="card"><h3>알아둘 점</h3>
+        <ul style="margin:0; padding-left:20px" class="small">
+          <li>다른 사람이 먼저 바꿨다면, 늦은 쪽은 <b>거부</b>되고 화면을 새로고침해야 합니다. 서로의 변경을 덮어쓰지 않기 위함입니다.</li>
+          <li>주문을 <b>취소</b>하면 주문 목록에서 <b>삭제</b>됩니다. 이력만 남습니다.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <h2>체험: 계획을 본 뒤 기준 정보가 바뀌면?</h2>
+      <p class="muted small" style="margin-top:0">①→②→③ 순서로 눌러 보세요. 확정은 계획을 본 때와 같은 기준 정보일 때만 됩니다.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <button class="btn ghost" id="scSim" type="button">① 계획 확인하기</button>
+        <button class="btn ghost" id="scChange" type="button">② 누군가 기준 정보를 바꿈</button>
+        <button class="btn" id="scConfirm" type="button">③ 이 안으로 확정</button>
+        <button class="btn ghost" id="scReset" type="button">처음부터</button>
+      </div>
+      <div id="scMsg" style="margin-top:10px" aria-live="polite"></div>
+      <p class="small muted" style="margin-bottom:0">이미 확정된 주문은 이후에 기준 정보가 바뀌어도 <b>확정 당시의 계획이 그대로 보존</b>됩니다.</p>
+    </div>
+    <div class="nav-next"><button class="btn ghost" data-goto="1">처음으로 ↺</button></div>
+  </section>
+  <p class="muted small" style="margin-top:24px">※ 이 안내서의 숫자는 코드의 초기값 기준이며, 운영 중 관리 화면에서 바뀔 수 있습니다.</p>
+  <details class="small muted" style="margin-top:6px">
+    <summary>참고: 근거가 된 파일</summary>
+    <p>업무 로직·계산 규칙·상태 순서·화면 동작·테스트(주문 계산, 주문 흐름)를 읽고 작성했습니다.</p>
+  </details>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- 공통: 기준 정보 (서비스 기본값) ---------- */
+  var NAMES = { KOREA: "한국", CHINA: "중국", JAPAN: "일본", VIETNAM: "베트남", INDONESIA: "인도네시아" };
+  var SHORT = { CHINA: "중", JAPAN: "일", VIETNAM: "베", INDONESIA: "인" };
+  var FACTORY = {
+    CHINA:     { maxDaily: 400, stockLimit: 4000,  unitCost: 700 },
+    JAPAN:     { maxDaily: 800, stockLimit: 2000,  unitCost: 900 },
+    VIETNAM:   { maxDaily: 200, stockLimit: 10000, unitCost: 550 },
+    INDONESIA: { maxDaily: 300, stockLimit: 7000,  unitCost: 450 }
+  };
+  var FACTORIES = ["CHINA", "JAPAN", "VIETNAM", "INDONESIA"];
+  var DAYS = {
+    "KOREA-CHINA": 1, "KOREA-JAPAN": 2, "KOREA-VIETNAM": 5, "KOREA-INDONESIA": 7,
+    "CHINA-JAPAN": 2, "CHINA-VIETNAM": 4, "CHINA-INDONESIA": 6,
+    "JAPAN-VIETNAM": 5, "JAPAN-INDONESIA": 7, "VIETNAM-INDONESIA": 2
+  };
+  var SHIP_DAILY_COST_EOK = 1; // 척당 하루 운항비 1억 원
+  function days(a, b) {
+    if (a === b) return 0;
+    return DAYS[a + "-" + b] != null ? DAYS[a + "-" + b] : DAYS[b + "-" + a];
+  }
+  function fmt(n) { return n.toLocaleString("ko-KR"); }
+  function ceilDiv(a, b) { return Math.floor((a + b - 1) / b); }
+  function el(tag, attrs, text) {
+    var e = document.createElementNS(attrs && attrs.ns ? attrs.ns : "http://www.w3.org/1999/xhtml", tag);
+    for (var k in attrs) { if (k !== "ns") e.setAttribute(k, attrs[k]); }
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  /* ---------- 탭 ---------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll("[role=tab]"));
+  function selectTab(i, focus) {
+    tabs.forEach(function (t, idx) {
+      var on = idx === i;
+      t.setAttribute("aria-selected", on);
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+    });
+    if (focus) tabs[i].focus();
+    window.scrollTo({ top: 0 });
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener("click", function () { selectTab(i); });
+    t.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowRight") { e.preventDefault(); selectTab((i + 1) % tabs.length, true); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); selectTab((i + tabs.length - 1) % tabs.length, true); }
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-goto]"), function (b) {
+    b.addEventListener("click", function () { selectTab(Number(b.getAttribute("data-goto")) - 1); });
+  });
+
+  /* ---------- 1단계: 지도 ---------- */
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var POS = { KOREA: [380, 60], CHINA: [150, 110], JAPAN: [490, 140], VIETNAM: [190, 260], INDONESIA: [400, 305] };
+  var map = document.getElementById("map");
+  var selected = "KOREA";
+  var routeEls = [];
+  Object.keys(DAYS).forEach(function (k) {
+    var p = k.split("-");
+    var a = POS[p[0]], b = POS[p[1]];
+    var line = document.createElementNS(SVGNS, "line");
+    line.setAttribute("x1", a[0]); line.setAttribute("y1", a[1]);
+    line.setAttribute("x2", b[0]); line.setAttribute("y2", b[1]);
+    line.setAttribute("class", "route");
+    map.appendChild(line);
+    var lab = document.createElementNS(SVGNS, "text");
+    lab.setAttribute("x", (a[0] + b[0]) / 2); lab.setAttribute("y", (a[1] + b[1]) / 2 + 4);
+    lab.setAttribute("class", "rlabel"); lab.setAttribute("text-anchor", "middle");
+    lab.textContent = DAYS[k] + "일"; lab.style.display = "none";
+    map.appendChild(lab);
+    routeEls.push({ a: p[0], b: p[1], line: line, lab: lab });
+  });
+  var nodeEls = {};
+  Object.keys(POS).forEach(function (c) {
+    var g = document.createElementNS(SVGNS, "g");
+    g.setAttribute("class", "node"); g.setAttribute("tabindex", "0"); g.setAttribute("role", "button");
+    g.setAttribute("aria-label", NAMES[c] + " 정보 보기");
+    var circ = document.createElementNS(SVGNS, "circle");
+    circ.setAttribute("cx", POS[c][0]); circ.setAttribute("cy", POS[c][1]); circ.setAttribute("r", 26);
+    var ic = document.createElementNS(SVGNS, "text");
+    ic.setAttribute("x", POS[c][0]); ic.setAttribute("y", POS[c][1] + 6); ic.setAttribute("class", "icon");
+    ic.textContent = c === "KOREA" ? "🏢" : "🏭";
+    var nm = document.createElementNS(SVGNS, "text");
+    nm.setAttribute("x", POS[c][0]); nm.setAttribute("y", POS[c][1] + 46); nm.setAttribute("class", "name");
+    nm.textContent = NAMES[c];
+    g.appendChild(circ); g.appendChild(ic); g.appendChild(nm);
+    g.addEventListener("click", function () { pick(c); });
+    g.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(c); } });
+    map.appendChild(g);
+    nodeEls[c] = g;
+  });
+  function pick(c) {
+    selected = c;
+    Object.keys(nodeEls).forEach(function (k) { nodeEls[k].setAttribute("class", "node" + (k === c ? " sel" : "")); });
+    routeEls.forEach(function (r) {
+      var on = r.a === c || r.b === c;
+      r.line.setAttribute("class", "route" + (on ? " on" : ""));
+      r.lab.style.display = on ? "" : "none";
+    });
+    renderInfo(c);
+  }
+  function renderInfo(c) {
+    var box = document.getElementById("countryInfo");
+    box.textContent = "";
+    var h = el("h3", {}, NAMES[c] + (c === "KOREA" ? " (본사·도착지)" : " 공장"));
+    box.appendChild(h);
+    var t = el("table", { "class": "t" });
+    function row(k, v) { var tr = el("tr"); tr.appendChild(el("th", {}, k)); tr.appendChild(el("td", {}, v)); t.appendChild(tr); }
+    if (c === "KOREA") {
+      row("역할", "완성된 배터리를 받는 곳. 배는 여기서 출발해 여기로 돌아옵니다.");
+      row("대기 비용", "배가 한국에서 기다리는 동안은 운항비가 들지 않습니다.");
+    } else {
+      var f = FACTORY[c];
+      row("하루 최대 생산", fmt(f.maxDaily) + "K (" + fmt(f.maxDaily * 1000) + "개)");
+      row("재고 상한", fmt(f.stockLimit) + "K");
+      row("셀 1개 원가", fmt(f.unitCost) + "원");
+      row("한국까지", days(c, "KOREA") + "일");
+    }
+    box.appendChild(t);
+    var others = Object.keys(POS).filter(function (k) { return k !== c; });
+    var p = el("p", { "class": "small muted" }, "뱃길: " + others.map(function (o) { return NAMES[o] + " " + days(c, o) + "일"; }).join(" · "));
+    box.appendChild(p);
+    if (c !== "KOREA") {
+      var f2 = FACTORY[c];
+      box.appendChild(el("p", { "class": "small" },
+        "💡 재고가 가득 차려면 약 " + Math.ceil(f2.stockLimit / f2.maxDaily) + "일 걸립니다. 그 전에 배가 오면 있는 만큼만 싣거나, 더 기다려야 합니다."));
+    }
+  }
+  pick("KOREA");
+
+  /* ---------- 2단계: 계획 체험 ("가까운 곳부터" 안) ---------- */
+  var DEFAULT_ORDERS = { CHINA: 3000, JAPAN: 1500, VIETNAM: 8000, INDONESIA: 5000 };
+  var inputsBox = document.getElementById("simInputs");
+  var orderInputs = {};
+  FACTORIES.forEach(function (c) {
+    var lab = el("label", { "class": "f" }, NAMES[c] + " 주문 (K)");
+    lab.appendChild(el("span", { "class": "hint" }, "재고 상한 " + fmt(FACTORY[c].stockLimit) + "K"));
+    var inp = el("input", { type: "number", min: "0", max: "100000", step: "100" });
+    inp.value = DEFAULT_ORDERS[c];
+    inp.addEventListener("input", runSim);
+    lab.appendChild(inp);
+    inputsBox.appendChild(lab);
+    orderInputs[c] = inp;
+  });
+  var shipSel = document.getElementById("shipCount");
+  shipSel.addEventListener("change", runSim);
+  document.getElementById("simReset").addEventListener("click", function () {
+    FACTORIES.forEach(function (c) { orderInputs[c].value = DEFAULT_ORDERS[c]; });
+    shipSel.value = "3";
+    runSim();
+  });
+
+  function plan(orders, shipCount) {
+    var active = FACTORIES.filter(function (c) { return orders[c] > 0; });
+    var amounts = {};
+    active.forEach(function (c) {
+      var q = orders[c], limit = FACTORY[c].stockLimit, v = ceilDiv(q, limit), a = [];
+      for (var j = 0; j < v - 1; j++) a.push(limit);
+      a.push(q - (v - 1) * limit);
+      amounts[c] = a;
+    });
+    var ships = Math.min(shipCount, active.length);
+    var byDist = active.slice().sort(function (x, y) { return days("KOREA", x) - days("KOREA", y); });
+    var groups = [];
+    for (var i = 0; i < ships; i++) groups.push([]);
+    byDist.forEach(function (c, i) { groups[i % ships].push(c); });
+
+    var result = [], totalDays = 0, sailTotal = 0;
+    var lastPickup = {}, visited = {};
+    groups.forEach(function (group, gi) {
+      var nTrips = Math.max.apply(null, group.map(function (c) { return amounts[c].length; }));
+      var free = 0, sail = 0, trips = [];
+      for (var t = 0; t < nTrips; t++) {
+        var stops = group.filter(function (c) { return t < amounts[c].length; });
+        var offset = [], off = 0, prev = "KOREA";
+        stops.forEach(function (c) { off += days(prev, c); offset.push(off); prev = c; });
+        var loop = off + days(prev, "KOREA");
+        var depart = free;
+        stops.forEach(function (c, i) {
+          var amount = amounts[c][visited[c] || 0];
+          var ready = (lastPickup[c] || 0) + ceilDiv(amount, FACTORY[c].maxDaily);
+          depart = Math.max(depart, ready - offset[i]);
+        });
+        var planned = [];
+        stops.forEach(function (c, i) {
+          var v = visited[c] || 0, arrive = depart + offset[i];
+          planned.push({ country: c, day: arrive, load: amounts[c][v] });
+          lastPickup[c] = arrive; visited[c] = v + 1;
+        });
+        trips.push({ depart: depart, back: depart + loop, stops: planned });
+        sail += loop; free = depart + loop;
+      }
+      result.push({ no: gi + 1, trips: trips, sail: sail });
+      totalDays = Math.max(totalDays, free);
+      sailTotal += sail;
+    });
+    var prod = 0;
+    active.forEach(function (c) { prod += orders[c] * 1000 * FACTORY[c].unitCost; });
+    return { ships: result, totalDays: totalDays, prodWon: prod, shipEok: sailTotal * SHIP_DAILY_COST_EOK };
+  }
+
+  function runSim() {
+    var msg = document.getElementById("simMsg"), out = document.getElementById("simOut");
+    msg.textContent = ""; out.textContent = "";
+    var orders = {}, total = 0, bad = null;
+    FACTORIES.forEach(function (c) {
+      var raw = orderInputs[c].value.trim();
+      var v = raw === "" ? 0 : Number(raw);
+      if (!isFinite(v) || v < 0 || Math.floor(v) !== v) bad = NAMES[c] + " 주문은 0 이상의 정수로 입력하세요.";
+      orders[c] = v; total += v;
+    });
+    if (!bad && total <= 0) bad = "주문 수량이 하나도 없습니다. 한 나라 이상 1K 이상 입력하세요.";
+    if (!bad && total > 100000) bad = "총 주문은 100,000K 이하여야 합니다. (지금 " + fmt(total) + "K)";
+    if (bad) { msg.appendChild(el("div", { "class": "msg bad" }, bad)); return; }
+
+    var p = plan(orders, Number(shipSel.value));
+    var kpis = el("div", { "class": "kpis" });
+    function kpi(v, l) { var d = el("div", { "class": "kpi" }); d.appendChild(el("div", { "class": "v" }, v)); d.appendChild(el("div", { "class": "l" }, l)); kpis.appendChild(d); }
+    kpi(p.totalDays + "일", "전부 한국에 도착하기까지");
+    kpi((p.prodWon / 1e8).toFixed(1) + "억 원", "생산비");
+    kpi(p.shipEok.toFixed(1) + "억 원", "운항비");
+    kpi(((p.prodWon / 1e8) + p.shipEok).toFixed(1) + "억 원", "합계");
+    out.appendChild(kpis);
+
+    var notes = [];
+    FACTORIES.forEach(function (c) {
+      if (orders[c] > 0) {
+        var v = ceilDiv(orders[c], FACTORY[c].stockLimit);
+        if (v > 1) notes.push(NAMES[c] + "은(는) 재고 상한(" + fmt(FACTORY[c].stockLimit) + "K)보다 많아 " + v + "번에 나눠 가져옵니다.");
+      }
+    });
+    if (notes.length) out.appendChild(el("div", { "class": "msg warn" }, "💡 " + notes.join(" ")));
+
+    out.appendChild(el("h3", { style: "margin-top:16px" }, "배별 일정 (가로축 = 날짜, 파란 구간 = 한국 출발 → 한국 복귀)"));
+    var T = Math.max(p.totalDays, 1);
+    p.ships.forEach(function (s) {
+      out.appendChild(el("div", { "class": "ship" }, s.no + "호 배 · 항해 " + s.sail + "일"));
+      var lane = el("div", { "class": "lane" });
+      s.trips.forEach(function (tr) {
+        var bar = el("div", { "class": "trip" });
+        bar.style.left = (tr.depart / T * 100) + "%";
+        bar.style.width = ((tr.back - tr.depart) / T * 100) + "%";
+        bar.title = tr.depart + "일차 출항 → " + tr.back + "일차 한국 도착";
+        lane.appendChild(bar);
+        tr.stops.forEach(function (st) {
+          var d = el("div", { "class": "stop" }, SHORT[st.country]);
+          d.style.left = (st.day / T * 100) + "%";
+          d.title = NAMES[st.country] + " " + st.day + "일차 도착, " + fmt(st.load) + "K 적재";
+          lane.appendChild(d);
+        });
+      });
+      out.appendChild(lane);
+      s.trips.forEach(function (tr, i) {
+        out.appendChild(el("p", { "class": "tripnote" },
+          (i + 1) + "회차: " + tr.depart + "일차 출항 → " +
+          tr.stops.map(function (st) { return NAMES[st.country] + " " + st.day + "일차(" + fmt(st.load) + "K)"; }).join(" → ") +
+          " → 한국 " + tr.back + "일차 도착"));
+      });
+    });
+    var axis = el("div", { "class": "axis" });
+    var step = T <= 20 ? 2 : T <= 60 ? 10 : 20;
+    for (var d = 0; d <= T; d += step) {
+      var sp = el("span", {}, d + "일"); sp.style.left = (d / T * 100) + "%"; axis.appendChild(sp);
+    }
+    out.appendChild(axis);
+    out.appendChild(el("p", { "class": "small muted" }, "원 안의 글자는 방문 나라(중·일·베·인)입니다. 원에 마우스를 올리면 도착일과 싣는 양이 보입니다."));
+  }
+  runSim();
+
+  /* ---------- 3단계: 주문 진행 체험 ---------- */
+  var LABEL = { CONFIRMED: "확정", IN_PROGRESS: "진행", COMPLETED: "완료", CANCELED: "취소" };
+  var NEXT = { CONFIRMED: ["IN_PROGRESS", "CANCELED"], IN_PROGRESS: ["COMPLETED", "CANCELED"], COMPLETED: [], CANCELED: [] };
+  var order, history, view, conflict;
+  var seq;
+  function resetOrder() {
+    order = { status: "CONFIRMED", version: 1, deleted: false };
+    history = [{ from: null, to: "CONFIRMED", who: "시스템", n: 1 }];
+    view = { A: { status: "CONFIRMED", version: 1 }, B: { status: "CONFIRMED", version: 1 } };
+    conflict = { A: null, B: null };
+    renderOrder();
+  }
+  function stateTag(s, deleted) {
+    var cls = s === "COMPLETED" ? "pill done" : s === "CANCELED" ? "pill cancel" : "pill cur";
+    return el("span", { "class": cls }, deleted ? "취소됨 · 주문 목록에서 삭제" : LABEL[s]);
+  }
+  function act(who, target) {
+    var v = view[who];
+    if (v.version !== order.version) {
+      conflict[who] = "다른 사용자가 먼저 이 주문을 변경했습니다. 화면을 새로 고쳐 현재 상태를 확인한 뒤 다시 시도해 주세요.";
+      renderOrder(); return;
+    }
+    var from = order.status;
+    order.status = target; order.version += 1;
+    history.push({ from: from, to: target, who: "담당자 " + who });
+    if (target === "CANCELED") order.deleted = true;
+    v.status = order.status; v.version = order.version;
+    conflict[who] = null;
+    renderOrder();
+  }
+  function refresh(who) {
+    view[who].status = order.status; view[who].version = order.version; conflict[who] = null; renderOrder();
+  }
+  function renderPerson(who, box) {
+    box.textContent = "";
+    var v = view[who];
+    box.appendChild(el("h3", {}, "담당자 " + who + "의 화면"));
+    var line = el("div"); line.appendChild(document.createTextNode("내 화면에 보이는 상태: ")); line.appendChild(stateTag(v.status, false));
+    box.appendChild(line);
+    if (v.version !== order.version) {
+      box.appendChild(el("p", { "class": "small muted", style: "margin:6px 0 0" }, "※ 이 화면은 최신이 아닙니다(담당자 본인은 모르는 상태)."));
+    }
+    var actions = el("div", { "class": "actions" });
+    var nexts = NEXT[v.status];
+    if (!nexts.length) actions.appendChild(el("span", { "class": "muted small" }, "더 바꿀 수 있는 상태가 없습니다."));
+    nexts.forEach(function (t) {
+      var b = el("button", { "class": "btn" + (t === "CANCELED" ? " danger" : ""), type: "button" }, LABEL[t] + "(으)로 변경");
+      b.addEventListener("click", function () { act(who, t); });
+      actions.appendChild(b);
+    });
+    box.appendChild(actions);
+    if (conflict[who]) {
+      box.appendChild(el("div", { "class": "msg bad", style: "margin-top:10px", role: "alert" }, conflict[who]));
+      var r = el("button", { "class": "btn ghost", type: "button", style: "margin-top:8px" }, "화면 새로고침");
+      r.addEventListener("click", function () { refresh(who); });
+      box.appendChild(r);
+    }
+  }
+  function renderOrder() {
+    var rs = document.getElementById("realState"); rs.textContent = "";
+    rs.appendChild(stateTag(order.status, order.deleted));
+    renderPerson("A", document.getElementById("pA"));
+    renderPerson("B", document.getElementById("pB"));
+    var log = document.getElementById("histLog"); log.textContent = "";
+    history.forEach(function (h) {
+      var t = h.from ? LABEL[h.from] + " → " + LABEL[h.to] : "주문 확정 (최초 등록)";
+      log.appendChild(el("li", {}, t + " · " + h.who));
+    });
+  }
+  document.getElementById("ordReset").addEventListener("click", resetOrder);
+  resetOrder();
+
+  /* ---------- 3단계: 기준 정보 변경 후 확정 체험 ---------- */
+  var sc = { simulated: false, changed: false };
+  function scShow(cls, text) {
+    var box = document.getElementById("scMsg"); box.textContent = "";
+    if (text) box.appendChild(el("div", { "class": "msg " + cls }, text));
+  }
+  document.getElementById("scSim").addEventListener("click", function () {
+    sc.simulated = true; sc.changed = false;
+    scShow("ok", "계획을 확인했습니다. (이때의 기준 정보 버전: 1)");
+  });
+  document.getElementById("scChange").addEventListener("click", function () {
+    if (!sc.simulated) { scShow("warn", "먼저 ① 계획 확인하기를 눌러 주세요."); return; }
+    sc.changed = true;
+    scShow("warn", "다른 사람이 기준 정보를 저장했습니다. (버전: 1 → 2)");
+  });
+  document.getElementById("scConfirm").addEventListener("click", function () {
+    if (!sc.simulated) { scShow("warn", "먼저 ① 계획 확인하기를 눌러 주세요."); return; }
+    if (sc.changed) { scShow("bad", "시뮬레이션 이후 기준 정보가 바뀌었습니다. 다시 시뮬레이션해 주세요. (확정되지 않음)"); return; }
+    scShow("ok", "확정되었습니다. 주문이 '확정' 상태로 만들어지고 이력이 남습니다.");
+  });
+  document.getElementById("scReset").addEventListener("click", function () {
+    sc.simulated = false; sc.changed = false; scShow("", "");
+  });
+})();
+</script>
+</body>
+</html>

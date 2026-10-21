@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createOrder, listRow, login, normalize } from './helpers';
+import { createOrder, listRow, login, normalize } from './huju-helpers';
 
 // E2E-023 목록에 필요한 정보가 최신순으로 나온다 (PRD R6)
 test('E2E-023 목록의 열이 모두 있고 방금 확정한 주문이 맨 위, 번호는 내림차순이다', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createOrder, login, readHistory } from './helpers';
+import { createOrder, login, readHistory } from './huju-helpers';
 
 // E2E-028 확인 창에서 취소하면 상태가 바뀌지 않는다 (PRD R7, INTENT 원칙 9)
 test('E2E-028 확인 창에서 [취소]를 누르면 상태와 이력이 그대로다', async ({ page }) => {

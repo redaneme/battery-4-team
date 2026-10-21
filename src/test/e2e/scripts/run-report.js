@@ -9,8 +9,8 @@ const os = require('node:os');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-// 테스트 코드는 src/test/e2e/허주/, 실행 결과는 docs/playwright/허주/report/ 에 둔다.
-const reportDir = path.resolve(root, '..', '..', '..', '..', 'docs', 'playwright', '허주', 'report');
+// 테스트 코드는 src/test/e2e/, 실행 결과는 docs/playwright/허주/report/ 에 둔다.
+const reportDir = path.resolve(root, '..', '..', '..', 'docs', 'playwright', '허주', 'report');
 const PRD = {
   '021': 'R3', '022': 'R4·R5·R8', '023': 'R6', '024': 'R6', '025': 'R6·R4',
   '026': 'R6', '027': 'R7', '028': 'R7', '029': 'R7', '030': 'R7',
@@ -89,8 +89,8 @@ const md = [
   '## 참고',
   '',
   '- E2E-026은 처음에 자동화 대상이 아니었으나, 현재 화면에 맞게 "지도 애니메이션 슬라이더로 일별 재고를 본다"로 시나리오를 바꾸어 테스트를 만들었다. (PRD R6 문구 보정은 팀 확인 필요)',
-  '- 상세 화면(단계별 결과, 실패 시 스크린샷·트레이스)은 `docs/playwright/허주/report/html/index.html` 에서 볼 수 있다. 브라우저로 열거나 `npx playwright show-report ../../../../docs/playwright/허주/report/html` 로 연다.',
-  '- 다시 만들려면 `cd src/test/e2e/허주 && npm run test:report` 를 실행한다.',
+  '- 상세 화면(단계별 결과, 실패 시 스크린샷·트레이스)은 `docs/playwright/허주/report/html/index.html` 에서 볼 수 있다. 브라우저로 열거나 `npx playwright show-report ../../../docs/playwright/허주/report/html` 로 연다.',
+  '- 다시 만들려면 `cd src/test/e2e && npm run test:report` 를 실행한다.',
   '',
 ].join('\n');
 fs.writeFileSync(path.join(reportDir, 'report.md'), md);

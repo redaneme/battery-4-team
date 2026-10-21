@@ -6,7 +6,7 @@
 ## 실행
 
 ```
-cd src/test/e2e/허주
+cd src/test/e2e
 npm install        # 처음 한 번
 npx playwright test        # headless (기본)
 npm run test:headed        # 브라우저 창을 보면서 실행
@@ -46,6 +46,6 @@ headless 로 전체를 실행하고 `docs/playwright/허주/report/` 에 결과�
 
 ## 참고
 
-- `helpers.ts`: 로그인, 시뮬레이션·주문 생성·상태 변경(사전 조건 만들기용 API 호출), 이력·목록 읽기.
+- `huju-helpers.ts`: 로그인, 시뮬레이션·주문 생성·상태 변경(사전 조건 만들기용 API 호출), 이력·목록 읽기.
 - 사전 조건은 API로 빠르게 만들고, 시나리오가 확인하려는 동작은 화면으로 직접 확인합니다.
 - E2E-024의 '취소' 건수는 개발 DB에 옛 취소 주문이 있을 수 있어서 값을 정하지 않고 행 수와 같은지만 봅니다.

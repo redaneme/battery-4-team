@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createOrder, login, normalize, readHistory } from './helpers';
+import { createOrder, login, normalize, readHistory } from './huju-helpers';
 
 // E2E-025 상세에 확정 당시 내용과 이력이 모두 보인다 (PRD R6·R4, INTENT 원칙 4·9)
 test('E2E-025 주문 상세에 확정 당시 내용, 이력, 애니메이션이 모두 있고 애니메이션은 자동 재생되지 않는다', async ({ page }) => {

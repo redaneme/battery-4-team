@@ -11,7 +11,7 @@ import path from 'node:path';
  */
 const PORT = 8091;
 const isWindows = process.platform === 'win32';
-const repoRoot = path.resolve(__dirname, '..', '..', '..', '..'); // 저장소 루트
+const repoRoot = path.resolve(__dirname, '..', '..', '..'); // 저장소 루트
 const gradle = isWindows ? '.\\gradlew.bat' : './gradlew';
 const appArgs = [
   `--server.port=${PORT}`,
@@ -30,7 +30,8 @@ const reporter: any = reportDir
   : [['list'], ['html', { open: 'never' }]];
 
 export default defineConfig({
-  testDir: './tests',
+  testDir: '.',
+  testMatch: /e2e-0(2[0-9]|30).spec.ts/, // 내 시나리오(021~030)만 실행한다
   fullyParallel: false,
   workers: 1,
   retries: 0,

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { DEFAULT_ORDERS, listRow, login, normalize, simulate } from './helpers';
+import { DEFAULT_ORDERS, listRow, login, normalize, simulate } from './huju-helpers';
 
 // E2E-021 확정 요청에 끼워 넣은 계산값은 무시되고 서버가 다시 계산한다 (PRD R3, INTENT 원칙 2)
 test('E2E-021 확정 요청에 끼워 넣은 계산값(totalCost=1, totalDays=1)은 무시된다', async ({ page }) => {

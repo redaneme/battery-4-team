@@ -1,6 +1,6 @@
 # battery E2E 테스트 — E2E-021 ~ E2E-030 (허주)
 
-`docs/e2e/허주/e2e-test-scenarios-final.xlsx`의 시나리오 E2E-021 ~ E2E-030을 Playwright로 만든 테스트입니다.
+`../../e2e/e2e-test-scenarios-final.xlsx`의 시나리오 E2E-021 ~ E2E-030을 Playwright로 만든 테스트입니다.
 이 폴더 안에서 독립적으로 동작하며, 다른 팀원의 테스트와 설정을 공유하지 않습니다.
 
 ## 실행

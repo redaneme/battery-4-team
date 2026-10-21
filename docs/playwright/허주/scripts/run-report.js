@@ -71,7 +71,7 @@ const md = [
   `- 테스트 코드 커밋: \`${git('rev-parse', '--short', 'HEAD')}\` (${git('rev-parse', '--abbrev-ref', 'HEAD')})${dirty ? ' — 커밋되지 않은 변경이 있었다' : ''}`,
   `- 환경: Playwright ${data.config?.version || ''}, Node ${process.version}, ${os.type()} ${os.release()}`,
   '- 실행 대상: 테스트가 직접 띄운 앱 (포트 8091, 메모리 DB). 개발 앱·개발 DB는 사용하지 않았다.',
-  '- 시나리오: `docs/e2e/허주/e2e-test-scenarios-final.xlsx` 의 E2E-021 ~ E2E-030',
+  '- 시나리오: `docs/e2e/e2e-test-scenarios-final.xlsx` 의 E2E-021 ~ E2E-030',
   '',
   '## 요약',
   '',

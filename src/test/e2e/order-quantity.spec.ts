@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { loginAsAdmin } from './helpers';
+import { loginUi } from './helpers';
 
 const COUNTRIES = ['CHINA', 'JAPAN', 'VIETNAM', 'INDONESIA'] as const;
 type Country = (typeof COUNTRIES)[number];
@@ -25,7 +25,8 @@ async function expectGauges(page: Page, expected: Record<Country, number>) {
 
 test.describe('2. 주문 수량 입력', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
+    await loginUi(page);
+    await expect(page).toHaveURL(/\/orders$/);
     await page.goto('/orders/new');
     await expect(total(page)).toHaveValue('12000');
   });

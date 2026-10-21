@@ -1,9 +1,15 @@
-import { test, expect } from '@playwright/test';
-import { login, loginAsAdmin } from './helpers';
+import { test, expect, type Page } from '@playwright/test';
+import { loginUi } from './helpers';
+
+/** 화면으로 로그인하고 주문 목록까지 이동했는지 확인한다 */
+async function loginAsAdmin(page: Page) {
+  await loginUi(page);
+  await expect(page).toHaveURL(/\/orders$/);
+}
 
 test.describe('1. 로그인·접근 통제', () => {
   test('E2E-001 올바른 계정으로 로그인한다', async ({ page }) => {
-    await login(page, 'admin', 'admin');
+    await loginUi(page, 'admin', 'admin');
     await expect(page).toHaveURL(/\/orders$/);
     await expect(page.getByRole('heading', { name: '주문 목록' })).toBeVisible();
     await expect(page.locator('.topbar .user span')).toHaveText('admin');
@@ -11,7 +17,7 @@ test.describe('1. 로그인·접근 통제', () => {
 
   test('E2E-002 틀린 아이디·비밀번호는 이유와 함께 거부된다', async ({ page }) => {
     for (const [id, pw] of [['admin', 'wrong'], ['guest', 'admin']]) {
-      await login(page, id, pw);
+      await loginUi(page, id, pw);
       // 세션 쿠키가 없는 첫 요청에는 서버가 URL 에 ;jsessionid 를 붙일 수 있다
       await expect(page).toHaveURL(/\/login(;jsessionid=\w+)?$/);
       await expect(page.locator('.alert.error')).toHaveText('아이디 또는 비밀번호가 올바르지 않습니다');

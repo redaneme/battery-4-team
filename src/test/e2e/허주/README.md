@@ -6,7 +6,7 @@
 ## 실행
 
 ```
-cd docs/playwright/허주
+cd src/test/e2e/허주
 npm install        # 처음 한 번
 npx playwright test        # headless (기본)
 npm run test:headed        # 브라우저 창을 보면서 실행
@@ -23,11 +23,11 @@ npm run test:headed        # 브라우저 창을 보면서 실행
 npm run test:report
 ```
 
-headless 로 전체를 실행하고 `report/` 에 결과를 만듭니다. PR에는 이 폴더를 함께 올립니다.
+headless 로 전체를 실행하고 `docs/playwright/허주/report/` 에 결과를 만듭니다. PR에는 이 폴더를 함께 올립니다.
 
-- `report/report.md` : 시나리오별 통과·실패와 소요 시간, 실행 환경, 테스트 코드 커밋
-- `report/html/index.html` : Playwright HTML 리포트 (실패 시 스크린샷·트레이스 포함)
-- `report/results.json` : Playwright JSON 결과
+- `docs/playwright/허주/report/report.md` : 시나리오별 통과·실패와 소요 시간, 실행 환경, 테스트 코드 커밋
+- `docs/playwright/허주/report/html/index.html` : Playwright HTML 리포트 (실패 시 스크린샷·트레이스 포함)
+- `docs/playwright/허주/report/results.json` : Playwright JSON 결과
 
 ## 시나리오와 테스트
 

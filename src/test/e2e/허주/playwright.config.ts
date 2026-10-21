@@ -11,7 +11,7 @@ import path from 'node:path';
  */
 const PORT = 8091;
 const isWindows = process.platform === 'win32';
-const repoRoot = path.resolve(__dirname, '..', '..', '..'); // 저장소 루트
+const repoRoot = path.resolve(__dirname, '..', '..', '..', '..'); // 저장소 루트
 const gradle = isWindows ? '.\\gradlew.bat' : './gradlew';
 const appArgs = [
   `--server.port=${PORT}`,

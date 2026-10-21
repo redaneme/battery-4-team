@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { changeStatus, createOrder, login, readHistory } from './huju-helpers';
+import { changeStatus, createOrder, login, readHistory } from './common-helpers';
 
 // E2E-029 진행 → 완료로 바꾸면 더 바꿀 수 없다 (PRD R7, INTENT 원칙 9)
 test('E2E-029 진행 → 완료 후에는 변경 버튼이 없고 이력이 3행이다', async ({ page }) => {

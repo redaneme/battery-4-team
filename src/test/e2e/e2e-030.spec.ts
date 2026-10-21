@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { changeStatus, createOrder, login } from './huju-helpers';
+import { changeStatus, createOrder, login } from './common-helpers';
 
 // E2E-030 화면에는 허용된 다음 상태 버튼만 있다 (PRD R7, INTENT 원칙 9)
 test('E2E-030 확정은 [진행·취소], 진행은 [완료·취소] 버튼만 있다', async ({ page }) => {

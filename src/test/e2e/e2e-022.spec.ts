@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createOrder, listRow, login, normalize } from './huju-helpers';
+import { createOrder, listRow, login, normalize } from './common-helpers';
 
 // E2E-022 마스터를 바꿔도 확정한 주문은 그대로고, 새 주문만 새 기준을 따른다 (PRD R4·R5·R8, INTENT 원칙 4)
 

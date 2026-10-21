@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createOrder, login, readHistory } from './huju-helpers';
+import { createOrder, login, readHistory } from './common-helpers';
 
 // E2E-027 확정 → 진행으로 바꾸고 이력이 남는다 (PRD R7, INTENT 원칙 9)
 test('E2E-027 확정 → 진행: 확인 창 문구, 배지, 안내, 이력 행', async ({ page }) => {

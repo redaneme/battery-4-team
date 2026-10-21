@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createOrder, login, normalize, simulate } from './huju-helpers';
+import { createOrder, login, normalize, simulate } from './common-helpers';
 
 // E2E-026 주문 상세에서 일별 재고를 지도 애니메이션으로 볼 수 있다 (PRD R6)
 // 일별 생산·비용 표에는 재고 열이 없고, 재고는 지도 애니메이션 슬라이더로 일별 확인한다.

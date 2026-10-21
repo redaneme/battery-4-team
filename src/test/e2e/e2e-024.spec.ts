@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { changeStatus, createOrder, login, normalize } from './huju-helpers';
+import { changeStatus, createOrder, login, normalize } from './common-helpers';
 
 // E2E-024 상태 필터와 건수가 맞다 (PRD R6, INTENT 원칙 9)
 // '취소' 건수는 취소한 주문이 삭제되어 늘지 않는다(PRD 7장). DB 에 따라 달라질 수 있으니 값은 정하지 않고 행 수와 같은지만 본다.

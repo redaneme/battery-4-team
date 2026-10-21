@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="template" content="precheck@1">
+<meta name="template" content="precheck@2">
 <title>구현 전 점검 · {{구현할 내용 한 줄}}</title>
 <style>
 :root{
@@ -12,6 +12,7 @@
   --ok:#14946b; --ok-bg:#e3f6ee; --warn:#d9731a; --warn-bg:#ffefdd; --bad:#d23c4b; --bad-bg:#fde8ea;
   --prep:#2f6fed; --prep-bg:#e8f0ff; --impl:#14946b; --impl-bg:#e3f6ee; --ver:#7a49d6; --ver-bg:#f0e9fd;
   --hero-a:#2f6fed; --hero-b:#7a49d6; --on-hero:#ffffff;
+  --ok-ink:#0b6b4d; --warn-ink:#9a4a07; --bad-ink:#a8202f; /* 밝은 바탕 위 글자용(대비 4.5:1 이상) */
   --shadow:0 1px 2px rgba(20,30,60,.06),0 8px 22px rgba(20,30,60,.07);
 }
 @media (prefers-color-scheme: dark){
@@ -21,6 +22,7 @@
     --ok:#4cd3a2; --ok-bg:#14302a; --warn:#ffa45c; --warn-bg:#3b2615; --bad:#ff8590; --bad-bg:#3d1c22;
     --prep:#7aa5ff; --prep-bg:#1b2742; --impl:#4cd3a2; --impl-bg:#14302a; --ver:#b69af0; --ver-bg:#291f45;
     --hero-a:#27408f; --hero-b:#4b2f8a; --shadow:none;
+    --ok-ink:#4cd3a2; --warn-ink:#ffa45c; --bad-ink:#ff8590;
   }
 }
 *{box-sizing:border-box}
@@ -38,9 +40,9 @@ body[data-loop="refactor"] .lt-refactor,body[data-loop="bugfix"] .lt-bugfix{back
 .hero h1{margin:0 0 4px;font-size:28px;letter-spacing:-.4px}
 .hero .target{margin:0 0 12px;font-size:16.5px;opacity:.96}
 .hero .meta{margin:0;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;opacity:.9}
-.status-badge{display:inline-block;margin-bottom:12px;font-size:15px;font-weight:800;letter-spacing:.5px;padding:3px 16px;border-radius:999px;background:#fff;color:var(--ok)}
-body[data-status="HILP"] .status-badge{color:var(--warn)}
-body[data-status="FAIL"] .status-badge{color:var(--bad)}
+.status-badge{display:inline-block;margin-bottom:12px;font-size:15px;font-weight:800;letter-spacing:.5px;padding:3px 16px;border-radius:999px;background:var(--card);color:var(--ok-ink)}
+body[data-status="HITL"] .status-badge{color:var(--warn-ink)}
+body[data-status="FAIL"] .status-badge{color:var(--bad-ink)}
 /* 섹션 */
 .sec{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px 20px}
 .sec h2{margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:10px}
@@ -56,32 +58,25 @@ table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
 th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
 th{background:var(--soft);font-size:13px;color:var(--muted);white-space:nowrap}
 td.num,th.num{text-align:right;white-space:nowrap}
-/* 칩 */
-.chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 10px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
-.chip.ok,.chip.change{color:var(--ok);background:var(--ok-bg)}
-.chip.warn,.chip.check{color:var(--warn);background:var(--warn-bg)}
-.chip.bad{color:var(--bad);background:var(--bad-bg)}
-.chip.none{color:var(--muted);background:var(--soft)}
-.chip.high{color:var(--bad);background:var(--bad-bg)}.chip.mid{color:var(--warn);background:var(--warn-bg)}.chip.low{color:var(--ok);background:var(--ok-bg)}
+/* 칩: 글자와 함께 data-state(ok|warn|bad|none)를 바꿔 주세요. 색만으로 뜻을 전하지 않도록 글자는 항상 같이 써 주세요. */
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 10px;border-radius:999px;border:1px solid currentColor;white-space:nowrap;color:var(--muted);background:var(--soft)}
+.chip[data-state="ok"]{color:var(--ok-ink);background:var(--ok-bg)}
+.chip[data-state="warn"]{color:var(--warn-ink);background:var(--warn-bg)}
+.chip[data-state="bad"]{color:var(--bad-ink);background:var(--bad-bg)}
+.chip[data-state="none"]{color:var(--muted);background:var(--soft)}
 /* 요구사항·원칙 칩 격자 */
 .reqs{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
 .rq{display:flex;gap:8px;align-items:baseline;border:1px solid var(--line);border-radius:10px;padding:6px 10px;color:var(--muted);background:var(--soft);font-size:13.5px}
 .rq b{color:var(--muted);min-width:34px}
 .rq[data-rel="yes"]{color:var(--fg);background:var(--accent-bg);border-color:var(--accent)}
 .rq[data-rel="yes"] b{color:var(--accent)}
+.rq[data-rel="yes"]::after{content:"✔ 관련";margin-left:auto;white-space:nowrap;font-size:12px;font-weight:800;color:var(--fg)}
 /* 이해 점검 / 체크리스트 / 3단계 */
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-@media (max-width:760px){.two,.three{grid-template-columns:1fr}.hero{padding:20px 16px}.hero h1{font-size:23px}.sec{padding:14px}}
+@media (max-width:760px){.two{grid-template-columns:1fr}.hero{padding:20px 16px}.hero h1{font-size:23px}.sec{padding:14px}}
 .mini{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--card)}
 .mini h3{margin:0 0 4px;font-size:15px;color:var(--fg)}
 .mini .k{font-size:12px;color:var(--muted);margin-top:6px}
-.step{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--card);border-top:4px solid var(--accent)}
-.step.prep{border-top-color:var(--prep)}.step.impl{border-top-color:var(--impl)}.step.ver{border-top-color:var(--ver)}
-.step h3{margin:0 0 6px;font-size:16px;display:flex;align-items:center;gap:8px}
-.step .no{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;color:#fff;font-size:12px;font-weight:800}
-.step.prep .no{background:var(--prep)}.step.impl .no{background:var(--impl)}.step.ver .no{background:var(--ver)}
-.step ul{margin:0;padding-left:18px;font-size:14px}
 .check{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 0;background:var(--card)}
 .check .n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent-bg);color:var(--accent);font-weight:800;font-size:13px}
 .check .body{flex:1;min-width:0}
@@ -90,84 +85,78 @@ td.num,th.num{text-align:right;white-space:nowrap}
 /* 규모 미터 */
 .meter{display:flex;gap:6px;max-width:420px}
 .meter .seg{flex:1;text-align:center;font-size:12.5px;font-weight:700;padding:5px 0;border-radius:8px;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
-.meter[data-scale="small"] .s{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
-.meter[data-scale="medium"] .m{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
-.meter[data-scale="large"] .l{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
-/* 진행 막대, 큰 숫자 */
-.bar{height:10px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:6px}
-.bar>i{display:block;height:100%;width:var(--p,0%);background:var(--ok);border-radius:999px}
-.bar.bad>i{background:var(--bad)}
-.big{font-size:30px;font-weight:800;line-height:1.1}
-.big small{font-size:14px;font-weight:600;color:var(--muted)}
-/* 타임라인 */
-.tl{list-style:none;margin:6px 0 0;padding:0 0 0 18px;border-left:2px solid var(--line)}
-.tl li{position:relative;margin:0 0 12px;padding-left:14px}
-.tl li::before{content:"";position:absolute;left:-26px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--card)}
+.meter[data-scale="small"] .s{background:var(--ok-bg);color:var(--ok-ink);border-color:var(--ok-ink)}
+.meter[data-scale="medium"] .m{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--warn-ink)}
+.meter[data-scale="large"] .l{background:var(--bad-bg);color:var(--bad-ink);border-color:var(--bad-ink)}
+.meter[data-scale="small"] .s::before,.meter[data-scale="medium"] .m::before,.meter[data-scale="large"] .l::before{content:"✔ "}
 /* Loop 종류별 섹션 */
 .for{display:none}
 body[data-loop="integrate"] .for-integrate,body[data-loop="develop"] .for-develop,
 body[data-loop="refactor"] .for-refactor,body[data-loop="bugfix"] .for-bugfix{display:block}
-.only-hilp{display:none}
-body[data-status="HILP"] .only-hilp{display:block}
-body[data-status="HILP"] .only-go{display:none}
+.only-hitl{display:none}
+body[data-status="HITL"] .only-hitl{display:block}
+body[data-status="HITL"] .only-go{display:none}
 .footer{margin:26px 0 0;text-align:center;color:var(--muted);font-size:12.5px}
 </style>
 </head>
 <!--
   ┌──────────────────────────────────────────────────────────────────────────┐
-  │ 프로젝트 공통 템플릿 (precheck.html — 구현 전 점검)  — 통합·개발·리팩토링·버그수정 Loop 가 모두 같은 템플릿을 쓴다. │
+  │ 공통 템플릿 (precheck.html — 구현 전 점검) · 통합·개발·리팩토링·버그수정 Loop 공용 │
   └──────────────────────────────────────────────────────────────────────────┘
   사용법
-  1. 이 파일을 복사해서 Loop 산출물 위치에 저장한다. (원본 템플릿은 고치지 않는다)
-  2. <body data-loop="..."> 를 integrate | develop | refactor | bugfix 중 하나로 바꾼다.
-     → 상단 Loop 칩이 자동으로 강조되고, 그 Loop 에 해당하는 "Loop 종류별" 섹션만 보인다.
-  3. <body data-status="..."> 를 GO 또는 HILP 로 바꾼다. HILP 면 "경고·질문" 블록이 보이고 상태 배지가 주황색이 된다.
-  4. data-slot="..." 이 붙은 요소의 {{...}} 를 실제 내용으로 바꾼다. 내용이 없으면 "없음" 이라고 쓴다.
-  5. data-repeat="..." 이 붙은 행·카드는 복사해서 늘리거나 줄인다.
-  6. data-rel / data-scale / data-status 처럼 속성으로 상태를 고르는 곳은 속성 값을 바꾼다.
-     (칩 문구는 그대로 두고 속성만 yes/no 로 바꾸면 된다)
-  7. 맨 위의 .tpl-banner 와 이 안내 주석은 지운다.
-  8. 완성한 파일에 중괄호 두 개가 연달아 나오는 자리표시자가 하나도 남아 있지 않아야 한다.
-     (확인: grep -c "{{" 파일 → 0)
-  9. 외부 파일·CDN 을 쓰지 않는다. 확인한 사실과 추측을 섞어 쓰지 않고, 근거(문서 번호, 파일 경로)를 함께 적는다.
+  1. 이 파일을 복사해 docs/evidence/이름/작업번호-작업명/precheck.html 로 저장해 주세요. 원본은 고치지 말아 주세요.
+  2. <body data-loop="..."> 를 integrate | develop | refactor | bugfix 중 하나로 바꿔 주세요. 해당 Loop 의 칩과 섹션만 보입니다.
+  3. <body data-status="..."> 를 GO 또는 HITL 로 바꿔 주세요. HITL 이면 "경고·질문" 블록이 보이고 배지가 주황색이 됩니다.
+  4. data-slot 이 붙은 요소의 {{...}} 를 실제 내용으로 바꿔 주세요. 내용이 없으면 "없음" 이라고 적어 주세요.
+  5. data-repeat 이 붙은 행·카드는 복사해서 늘리거나 줄여 주세요. 체크리스트 3개는 그대로 두세요.
+  6. 칩은 글자와 함께 data-state 도 바꿔 주세요: ok(초록) | warn(주황) | bad(빨강) | none(회색).
+     예) 충족 = ok, 확인 못 함 = warn, 미충족·실패 = bad. 글자만 바꾸면 색이 맞지 않습니다.
+     data-rel, data-scale, data-status 도 같은 방식으로 값을 바꿔 주세요.
+  7. (report) 진행 막대는 .bar 의 style 안 p 값(0%)을 통과율(0~100%)로 바꿔 주세요. 실패가 있으면 class="bad" 를 더해 주세요.
+  8. 맨 위의 .tpl-banner 와 이 안내 주석은 지워 주세요.
+  9. 끝나면 중괄호 두 개({{)가 남아 있지 않아야 합니다.
+     확인: grep -c "{{" 파일 → 0,  grep -c 'class="tpl-banner"' 파일 → 0
+ 10. 값에 <, >, & 가 있으면 &lt; &gt; &amp; 로 바꿔 주세요. (화면이 깨지거나 스크립트가 실행되는 것을 막기 위해서입니다)
+ 11. 외부 파일·CDN 은 쓰지 말아 주세요. 확인한 사실과 추측은 구분하고, 근거(문서 번호, 파일 경로)를 함께 적어 주세요.
+ 12. CSS 는 precheck 와 report 가 대부분 같습니다. 한쪽을 고치면 다른 쪽도 고쳐 주세요. 구조를 바꾸면 meta template 버전을 올려 주세요.
 -->
 <body data-loop="develop" data-status="GO">
-<div class="tpl-banner">템플릿 안내 — 이 배너는 지우고, {{ }} 를 모두 실제 내용으로 바꾸세요. (precheck@1)</div>
+<div class="tpl-banner">템플릿 안내 — 이 배너는 지우고, {{ }} 를 모두 실제 내용으로 바꾸세요. (precheck@2)</div>
 <div class="wrap">
 
 <header class="hero">
   <ul class="loops" aria-label="Loop 종류">
     <li class="lt lt-integrate">통합</li><li class="lt lt-develop">개발</li><li class="lt lt-refactor">리팩토링</li><li class="lt lt-bugfix">버그수정</li>
   </ul>
-  <div class="status-badge"><span data-slot="status">{{GO 또는 HILP}}</span></div>
+  <div class="status-badge"><span data-slot="status">{{GO 또는 HITL}}</span></div>
   <h1>구현 전 점검</h1>
   <p class="target"><span data-slot="task">{{구현할 내용 (사용자가 준 요청 그대로)}}</span></p>
-  <p class="meta"><span>날짜 <span data-slot="date">{{YYYY-MM-DD HH:MM:SS}}</span></span><span>회차 <span data-slot="round">{{1}}</span></span><span>작성 prepare 에이전트</span><span>로그 <span data-slot="log-path">{{docs/logs/prepare/inspection_날짜_시간_초.log}}</span></span></p>
+  <p class="meta"><span>날짜 <span data-slot="date">{{YYYY-MM-DD HH:MM:SS}}</span></span><span>회차 <span data-slot="round">{{1}}</span></span><span>작성 prepare 에이전트</span><span>브랜치 <span data-slot="branch">{{브랜치}}</span> · 커밋 <span data-slot="commit">{{짧은 해시}}</span></span><span>요청자 <span data-slot="requester">{{이름}}</span></span><span>로그 <span data-slot="log-path">{{docs/logs/prepare/inspection_날짜_시간_초.log}}</span></span></p>
 </header>
 
 <section class="sec" id="verdict">
   <h2><span class="no">1</span>판단</h2>
   <p><b><span data-slot="summary">{{점검 결과 한 줄 요약}}</span></b></p>
   <h3>이유</h3>
-  <ul class="list"><li data-repeat="reason"><span data-slot="reason">{{GO 또는 HILP 로 판단한 이유 (근거와 함께)}}</span></li></ul>
-  <div class="only-hilp">
+  <ul class="list"><li data-repeat="reason"><span data-slot="reason">{{GO 또는 HITL 로 판단한 이유 (근거와 함께)}}</span></li></ul>
+  <div class="only-hitl">
     <h3>⚠ 경고</h3>
-    <ul class="list"><li data-repeat="warning"><span data-slot="warning">{{큰 변경·높은 위험 경고 문장 (없으면 이 항목 삭제)}}</span></li></ul>
+    <ul class="list"><li data-repeat="warning"><span data-slot="warning">{{큰 변경이나 위험에 대한 경고 (없으면 이 항목 삭제)}}</span></li></ul>
     <h3>사용자에게 확인할 질문</h3>
     <ul class="list"><li data-repeat="question"><span data-slot="question">{{사람이 답해야 하는 질문}}</span></li></ul>
   </div>
 </section>
 
 <section class="sec" id="understand">
-  <h2><span class="no">2</span>이해 점검 <span class="hint">— 모르면 추측하지 말고 HILP</span></h2>
+  <h2><span class="no">2</span>이해 점검 <span class="hint">— 모르는 부분은 추측하지 않고 사람에게 확인을 요청해 주세요(HITL)</span></h2>
   <div class="two">
     <div class="mini">
-      <h3>배경 · 사용자가 어떤 상황인가 <span class="chip none" data-slot="background-state">{{이해함 / 이해하지 못함}}</span></h3>
+      <h3>배경 · 사용자가 어떤 상황인가 <span class="chip" data-state="none" data-slot="background-state">{{이해함 / 이해하지 못함}}</span></h3>
       <p><span data-slot="background">{{한두 문장}}</span></p>
       <div class="k">근거</div><p class="hint"><span data-slot="background-evidence">{{요청 문구, PRD/INTENT 번호, 코드 위치}}</span></p>
     </div>
     <div class="mini">
-      <h3>목적 · 왜 필요한가 <span class="chip none" data-slot="purpose-state">{{이해함 / 이해하지 못함}}</span></h3>
+      <h3>목적 · 왜 필요한가 <span class="chip" data-state="none" data-slot="purpose-state">{{이해함 / 이해하지 못함}}</span></h3>
       <p><span data-slot="purpose">{{끝나면 무엇이 달라져야 하는지 한두 문장}}</span></p>
       <div class="k">근거</div><p class="hint"><span data-slot="purpose-evidence">{{요청 문구, PRD/INTENT 번호, 코드 위치}}</span></p>
     </div>
@@ -176,20 +165,21 @@ body[data-status="HILP"] .only-go{display:none}
 
 <section class="sec" id="scale">
   <h2><span class="no">3</span>규모와 위험</h2>
-  <p>변경 규모 <span class="hint">(여러 계층·많은 파일·DB/엔티티·핵심 불변식·되돌리기 어려움 → 큼)</span></p>
+  <p>변경 규모 <span class="hint">(여러 계층, 많은 파일, DB 변경, 핵심 규칙 변경, 되돌리기 어려움 → 큼)</span></p>
   <div class="meter" data-scale="small"><span class="seg s">작음</span><span class="seg m">중간</span><span class="seg l">큼</span></div>
-  <p>사용자가 이 규모·위험을 알고 있는가: <b><span data-slot="user-aware">{{예 / 아니오 / 해당 없음}}</span></b> <span class="hint">— <span data-slot="user-aware-why">{{요청의 어느 문구로 판단했는지}}</span></span></p>
+  <p>사용자가 이 규모·위험을 알고 있는가: <b><span data-slot="user-aware">{{예 / 아니오 / 해당 없음}}</span></b> <span class="hint">— <span data-slot="user-aware-why">{{판단 근거가 된 요청 문구}}</span></span></p>
   <div class="tbl"><table>
     <thead><tr><th>위험</th><th>심각도</th><th>대응</th></tr></thead>
     <tbody>
-      <tr data-repeat="risk"><td><span data-slot="risk">{{위험 내용}}</span></td><td><span class="chip mid" data-slot="risk-level">{{높음 / 중간 / 낮음}}</span></td><td><span data-slot="risk-fix">{{대응·완화 방법}}</span></td></tr>
+      <tr data-repeat="risk"><td><span data-slot="risk">{{위험 내용}}</span></td><td><span class="chip" data-state="none" data-slot="risk-level">{{높음 / 중간 / 낮음}}</span></td><td><span data-slot="risk-fix">{{대응·완화 방법}}</span></td></tr>
     </tbody></table></div>
-  <h3>가정 <span class="hint">(확인하지 않은 것)</span></h3>
+  <h3>가정 <span class="hint">(확인하지 못한 것)</span></h3>
   <ul class="list"><li data-repeat="assumption"><span data-slot="assumption">{{확인하지 못한 가정 (없으면 없음)}}</span></li></ul>
 </section>
 
 <section class="sec" id="requirements">
   <h2><span class="no">4</span>요구사항 · 원칙과의 관계</h2>
+  <p class="hint">기준 문서: PRD.md <span data-slot="prd-version">{{커밋 해시 또는 날짜}}</span> · INTENT.md <span data-slot="intent-version">{{커밋 해시 또는 날짜}}</span> (아래 R1~R11, 원칙 1~14는 이 버전 기준입니다. 문서가 바뀌면 목록도 고쳐 주세요)</p>
   <h3>PRD 요구사항 <span class="hint">(관련 있는 항목은 <code>data-rel="yes"</code>)</span></h3>
   <ul class="reqs">
     <li class="rq" data-rel="no" data-req="R1"><b>R1</b>주문 수량 입력</li>
@@ -227,7 +217,7 @@ body[data-status="HILP"] .only-go{display:none}
   <h3>범위 밖 확정 (PRD 10장) 저촉 여부</h3>
   <p><span data-slot="out-of-scope">{{저촉하지 않음 / 저촉함 (어떤 항목인지)}}</span></p>
   <h3>충돌·불일치</h3>
-  <ul class="list"><li data-repeat="conflict"><span data-slot="conflict">{{문서끼리, 문서와 코드의 충돌 (없으면 없음)}}</span></li></ul>
+  <ul class="list"><li data-repeat="conflict"><span data-slot="conflict">{{문서끼리, 또는 문서와 코드가 서로 다른 곳 (없으면 없음)}}</span></li></ul>
 </section>
 
 <section class="sec" id="impact">
@@ -236,88 +226,91 @@ body[data-status="HILP"] .only-go{display:none}
     <thead><tr><th style="width:27%">계층</th><th style="width:12%">변경</th><th style="width:33%">바꿀 파일·메서드</th><th style="width:28%">이유</th></tr></thead>
     <tbody>
       <tr data-layer="화면 템플릿"><td><b>화면 템플릿</b><div class="hint"><code>src/main/resources/templates/*.html</code></div></td>
-        <td><span class="chip none" data-slot="layer-1-state">{{변경 / 확인만 / 없음}}</span></td>
+        <td><span class="chip" data-state="none" data-slot="layer-1-state">{{변경 / 확인만 / 없음}}</span></td>
         <td><span data-slot="layer-1-files">{{바꿀 파일·메서드}}</span><div class="hint">login · orders · order-new · order-detail · master · fragments</div></td>
         <td><span data-slot="layer-1-why">{{이유}}</span></td></tr>
       <tr data-layer="화면 스크립트"><td><b>화면 스크립트</b><div class="hint"><code>src/main/resources/static/js/*.js</code></div></td>
-        <td><span class="chip none" data-slot="layer-2-state">{{변경 / 확인만 / 없음}}</span></td>
+        <td><span class="chip" data-state="none" data-slot="layer-2-state">{{변경 / 확인만 / 없음}}</span></td>
         <td><span data-slot="layer-2-files">{{바꿀 파일·메서드}}</span><div class="hint">order-new.js · planview.js · anim.js · common.js</div></td>
         <td><span data-slot="layer-2-why">{{이유}}</span></td></tr>
       <tr data-layer="컨트롤러"><td><b>컨트롤러</b><div class="hint"><code>controller/AppController.java</code></div></td>
-        <td><span class="chip none" data-slot="layer-3-state">{{변경 / 확인만 / 없음}}</span></td>
+        <td><span class="chip" data-state="none" data-slot="layer-3-state">{{변경 / 확인만 / 없음}}</span></td>
         <td><span data-slot="layer-3-files">{{바꿀 파일·메서드}}</span><div class="hint">화면 요청·JSON API·로그인 처리</div></td>
         <td><span data-slot="layer-3-why">{{이유}}</span></td></tr>
       <tr data-layer="서비스"><td><b>서비스</b><div class="hint"><code>service/BatteryService.java</code></div></td>
-        <td><span class="chip none" data-slot="layer-4-state">{{변경 / 확인만 / 없음}}</span></td>
+        <td><span class="chip" data-state="none" data-slot="layer-4-state">{{변경 / 확인만 / 없음}}</span></td>
         <td><span data-slot="layer-4-files">{{바꿀 파일·메서드}}</span><div class="hint">확정·상태 변경·기준 정보 검증·버전 검사 (BusinessException)</div></td>
         <td><span data-slot="layer-4-why">{{이유}}</span></td></tr>
       <tr data-layer="경로 계산"><td><b>경로 계산</b><div class="hint"><code>simulation/Planner.java · Master · Plan · StoredPlan</code></div></td>
-        <td><span class="chip none" data-slot="layer-5-state">{{변경 / 확인만 / 없음}}</span></td>
+        <td><span class="chip" data-state="none" data-slot="layer-5-state">{{변경 / 확인만 / 없음}}</span></td>
         <td><span data-slot="layer-5-files">{{바꿀 파일·메서드}}</span><div class="hint">DB·화면을 모르는 순수 계산 (원칙 11)</div></td>
         <td><span data-slot="layer-5-why">{{이유}}</span></td></tr>
       <tr data-layer="엔티티·DB"><td><b>엔티티·DB</b><div class="hint"><code>entity/* · repository/* · H2 ./data/battery</code></div></td>
-        <td><span class="chip none" data-slot="layer-6-state">{{변경 / 확인만 / 없음}}</span></td>
+        <td><span class="chip" data-state="none" data-slot="layer-6-state">{{변경 / 확인만 / 없음}}</span></td>
         <td><span data-slot="layer-6-files">{{바꿀 파일·메서드}}</span><div class="hint">Order · OrderStatusHistory · Factory · Route · Setting</div></td>
         <td><span data-slot="layer-6-why">{{이유}}</span></td></tr>
       <tr data-layer="설정·로그인"><td><b>설정·로그인</b><div class="hint"><code>config/*</code></div></td>
-        <td><span class="chip none" data-slot="layer-7-state">{{변경 / 확인만 / 없음}}</span></td>
+        <td><span class="chip" data-state="none" data-slot="layer-7-state">{{변경 / 확인만 / 없음}}</span></td>
         <td><span data-slot="layer-7-files">{{바꿀 파일·메서드}}</span><div class="hint">LoginInterceptor · WebConfig · DataInitializer</div></td>
         <td><span data-slot="layer-7-why">{{이유}}</span></td></tr>
-      <tr data-repeat="layer-extra"><td><span data-slot="layer-extra">{{그 밖의 영향 (없으면 행 삭제)}}</span></td><td><span class="chip none">{{변경}}</span></td><td><span data-slot="layer-extra-files">{{파일}}</span></td><td><span data-slot="layer-extra-why">{{이유}}</span></td></tr>
+      <tr data-repeat="layer-extra"><td><span data-slot="layer-extra">{{그 밖의 영향 (없으면 행 삭제)}}</span></td><td><span class="chip" data-state="none">{{변경}}</span></td><td><span data-slot="layer-extra-files">{{파일}}</span></td><td><span data-slot="layer-extra-why">{{이유}}</span></td></tr>
     </tbody></table></div>
 </section>
 
 <section class="sec" id="tests">
   <h2><span class="no">6</span>기존 테스트 · 시나리오</h2>
-  <p class="hint">E2E 는 개발 서버(8080)·개발 DB(<code>./data/battery</code>)가 아니라 별도 포트·별도 DB 로 띄운 앱에 돌린다. <code>test.fail()</code> 로 표시한 알려진 결함 테스트(E2E-033 취소 직후 이동, E2E-035 없는 주문 번호)는 실패해야 기대한 결과다.</p>
+  <p class="hint">E2E는 개발 서버(8080)와 개발 DB(<code>./data/battery</code>)가 아니라, 따로 띄운 앱(별도 포트·별도 DB)에서 실행합니다. <code>test.fail()</code>로 표시한 알려진 결함 테스트는 실패하는 것이 정상입니다. 목록은 <code>grep -rn "test.fail" src/test/e2e</code> 로 확인해 주세요.</p>
   <h3>JUnit (<code>src/test</code>)</h3>
   <div class="tbl"><table>
     <thead><tr><th>테스트</th><th>관련</th><th>메모</th></tr></thead>
     <tbody>
       <tr data-junit="OrderFlowTests"><td><b>OrderFlowTests</b><div class="hint">주문 확정·상태 변경·기준 정보 검증·로그인 흐름 (MockMvc)</div></td>
-        <td><span class="chip none" data-slot="junit-OrderFlowTests-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="junit-OrderFlowTests-note">{{어떤 테스트가 관련되는지, 공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="junit-OrderFlowTests-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="junit-OrderFlowTests-note">{{관련된 테스트와 빠진 부분}}</span></td></tr>
       <tr data-junit="PlannerTest"><td><b>PlannerTest</b><div class="hint">방문 횟수·적재량·재고 상한·출항 시점·비용 대소 등 계산 규칙</div></td>
-        <td><span class="chip none" data-slot="junit-PlannerTest-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="junit-PlannerTest-note">{{어떤 테스트가 관련되는지, 공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="junit-PlannerTest-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="junit-PlannerTest-note">{{관련된 테스트와 빠진 부분}}</span></td></tr>
       <tr data-junit="DemoApplicationTests"><td><b>DemoApplicationTests</b><div class="hint">스프링 컨텍스트가 뜨는지</div></td>
-        <td><span class="chip none" data-slot="junit-DemoApplicationTests-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="junit-DemoApplicationTests-note">{{어떤 테스트가 관련되는지, 공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="junit-DemoApplicationTests-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="junit-DemoApplicationTests-note">{{관련된 테스트와 빠진 부분}}</span></td></tr>
+      <tr data-repeat="junit-extra"><td><span data-slot="junit-extra">{{위 목록에 없는 JUnit 클래스 (없으면 행 삭제)}}</span></td><td><span class="chip" data-state="none" data-slot="junit-extra-rel">{{관련 / 영향 없음}}</span></td><td><span data-slot="junit-extra-note">{{메모}}</span></td></tr>
     </tbody></table></div>
+  <p class="hint">아래 표는 작성할 때의 목록입니다. 테스트가 늘었다면 <code>ls src/test/java src/test/e2e</code> 로 확인하고 행을 추가해 주세요.</p>
   <h3>E2E (<code>src/test/e2e</code>) — 시나리오 흐름별</h3>
   <div class="tbl"><table>
     <thead><tr><th>흐름</th><th>시나리오</th><th>파일</th><th>관련</th><th>메모</th></tr></thead>
     <tbody>
       <tr data-e2e="1 로그인·접근 통제"><td><b>1 로그인·접근 통제</b></td><td>E2E-001~005</td><td><code>login-access.spec.ts</code></td>
-        <td><span class="chip none" data-slot="e2e-1-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="e2e-1-note">{{관련 시나리오 ID·공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="e2e-1-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="e2e-1-note">{{관련 시나리오 ID와 빠진 부분}}</span></td></tr>
       <tr data-e2e="2 주문 수량 입력"><td><b>2 주문 수량 입력</b></td><td>E2E-006~010</td><td><code>order-quantity.spec.ts</code></td>
-        <td><span class="chip none" data-slot="e2e-2-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="e2e-2-note">{{관련 시나리오 ID·공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="e2e-2-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="e2e-2-note">{{관련 시나리오 ID와 빠진 부분}}</span></td></tr>
       <tr data-e2e="3 경로안 계산·비교"><td><b>3 경로안 계산·비교</b></td><td>E2E-011~014</td><td><code>simulation.spec.ts</code></td>
-        <td><span class="chip none" data-slot="e2e-3-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="e2e-3-note">{{관련 시나리오 ID·공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="e2e-3-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="e2e-3-note">{{관련 시나리오 ID와 빠진 부분}}</span></td></tr>
       <tr data-e2e="4 주문 확정"><td><b>4 주문 확정</b></td><td>E2E-015~021</td><td><code>confirm.spec.ts · e2e-021.spec.ts</code></td>
-        <td><span class="chip none" data-slot="e2e-4-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="e2e-4-note">{{관련 시나리오 ID·공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="e2e-4-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="e2e-4-note">{{관련 시나리오 ID와 빠진 부분}}</span></td></tr>
       <tr data-e2e="5 주문 목록·상세"><td><b>5 주문 목록·상세</b></td><td>E2E-022~026</td><td><code>e2e-022~026.spec.ts</code></td>
-        <td><span class="chip none" data-slot="e2e-5-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="e2e-5-note">{{관련 시나리오 ID·공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="e2e-5-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="e2e-5-note">{{관련 시나리오 ID와 빠진 부분}}</span></td></tr>
       <tr data-e2e="6 주문 상태 관리"><td><b>6 주문 상태 관리</b></td><td>E2E-027~035</td><td><code>e2e-027~030.spec.ts · e2e031-041.spec.ts</code></td>
-        <td><span class="chip none" data-slot="e2e-6-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="e2e-6-note">{{관련 시나리오 ID·공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="e2e-6-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="e2e-6-note">{{관련 시나리오 ID와 빠진 부분}}</span></td></tr>
       <tr data-e2e="7 기준 정보(마스터)"><td><b>7 기준 정보(마스터)</b></td><td>E2E-036~040</td><td><code>e2e031-041.spec.ts</code></td>
-        <td><span class="chip none" data-slot="e2e-7-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="e2e-7-note">{{관련 시나리오 ID·공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="e2e-7-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="e2e-7-note">{{관련 시나리오 ID와 빠진 부분}}</span></td></tr>
       <tr data-e2e="8 대표 종단 흐름"><td><b>8 대표 종단 흐름</b></td><td>E2E-041</td><td><code>e2e031-041.spec.ts</code></td>
-        <td><span class="chip none" data-slot="e2e-8-rel">{{관련 / 영향 없음}}</span></td>
-        <td><span data-slot="e2e-8-note">{{관련 시나리오 ID·공백}}</span></td></tr>
+        <td><span class="chip" data-state="none" data-slot="e2e-8-rel">{{관련 / 영향 없음}}</span></td>
+        <td><span data-slot="e2e-8-note">{{관련 시나리오 ID와 빠진 부분}}</span></td></tr>
+      <tr data-repeat="e2e-extra"><td><span data-slot="e2e-extra">{{위 흐름에 없는 E2E (없으면 행 삭제)}}</span></td><td><span data-slot="e2e-extra-ids">{{시나리오 ID}}</span></td><td><code data-slot="e2e-extra-file">{{파일}}</code></td><td><span class="chip" data-state="none" data-slot="e2e-extra-rel">{{관련 / 영향 없음}}</span></td><td><span data-slot="e2e-extra-note">{{메모}}</span></td></tr>
     </tbody></table></div>
   <h3>알려진 결함 테스트 (<code>test.fail()</code>)에 미치는 영향</h3>
-  <p><span data-slot="known-defects">{{E2E-033·035 에 영향 없음 / 이 변경으로 결함이 고쳐져 test.fail() 제거 필요 …}}</span></p>
+  <p><span data-slot="known-defects">{{test.fail() 테스트에 영향 없음 / 결함이 고쳐져서 test.fail()을 지워야 함 (테스트 ID)}}</span></p>
   <h3>테스트 공백</h3>
-  <ul class="list"><li data-repeat="gap"><span data-slot="gap">{{관련 동작인데 검증하는 테스트가 없는 곳 (없으면 없음)}}</span></li></ul>
-  <h3>추가·수정할 테스트 <span class="hint">(중복·가치 없는 테스트는 늘리지 않는다)</span></h3>
+  <ul class="list"><li data-repeat="gap"><span data-slot="gap">{{관련 동작인데 테스트가 없는 곳 (없으면 없음)}}</span></li></ul>
+  <h3>추가·수정할 테스트 <span class="hint">(중복되거나 필요 없는 테스트는 만들지 말아 주세요)</span></h3>
   <div class="tbl"><table>
     <thead><tr><th>테스트</th><th>종류</th><th>이유</th></tr></thead>
     <tbody><tr data-repeat="new-test"><td><span data-slot="new-test">{{추가할 테스트 이름}}</span></td><td><span data-slot="new-test-kind">{{JUnit / E2E}}</span></td><td><span data-slot="new-test-why">{{존재 목적}}</span></td></tr></tbody></table></div>
@@ -345,13 +338,13 @@ body[data-status="HILP"] .only-go{display:none}
   <ul class="list">
     <li>바뀌면 안 되는 동작(불변 목록): <span data-slot="refactor-invariants">{{화면·API·계산 결과 중 그대로여야 하는 것}}</span></li>
     <li>동작이 같음을 보장하는 안전망: <span data-slot="refactor-safety">{{이 변경을 지키는 JUnit·E2E}}</span></li>
-    <li>이번에 하지 않는 정리: <span data-slot="refactor-out">{{범위를 넓히지 않기 위해 미루는 것}}</span></li>
+    <li>이번에 하지 않는 정리: <span data-slot="refactor-out">{{이번에 하지 않고 미루는 것}}</span></li>
   </ul>
 </section>
 <section class="sec for for-bugfix" id="loop-bugfix">
   <h2><span class="no">★</span>버그수정 Loop 점검</h2>
   <ul class="list">
-    <li>재현 방법: <span data-slot="bugfix-repro">{{단계, 입력, 기대와 실제}}</span></li>
+    <li>재현 방법: <span data-slot="bugfix-repro">{{재현 단계, 입력, 기대한 결과, 실제 결과}}</span></li>
     <li>원인(확인한 코드 위치): <span data-slot="bugfix-cause">{{파일·메서드와 근거}}</span></li>
     <li>같은 문제가 생기지 않게 막는 테스트: <span data-slot="bugfix-guard">{{재발 방지 테스트}}</span></li>
   </ul>
@@ -362,18 +355,18 @@ body[data-status="HILP"] .only-go{display:none}
   <div class="tbl"><table>
     <thead><tr><th class="num">단계</th><th>내용</th></tr></thead>
     <tbody><tr data-repeat="plan"><td class="num"><span data-slot="plan-step">{{1}}</span></td><td><span data-slot="plan-detail">{{무엇을 어떻게 바꾸는가}}</span></td></tr></tbody></table></div>
-  <p class="hint only-hilp">HILP 이면 계획은 비워도 된다. 사용자의 답을 받은 뒤 다시 점검한다.</p>
+  <p class="hint only-hitl">HITL이면 계획은 비워 두셔도 됩니다. 사용자의 답을 받은 뒤 다시 점검하겠습니다.</p>
 </section>
 
 <section class="sec" id="checklist">
-  <h2><span class="no">8</span>구현 후 확인할 체크리스트 3개 <span class="hint">— verify 가 이것을 확인한다</span></h2>
-  <div class="check" data-repeat="checklist"><div class="n">1</div><div class="body"><b><span data-slot="check-1">{{확인할 항목 (눈으로 확인할 수 있는 형태)}}</span></b><div class="how">확인 방법: <span data-slot="check-1-how">{{실행할 테스트·화면·명령}}</span></div></div></div>
-  <div class="check" data-repeat="checklist"><div class="n">2</div><div class="body"><b><span data-slot="check-2">{{확인할 항목}}</span></b><div class="how">확인 방법: <span data-slot="check-2-how">{{실행할 테스트·화면·명령}}</span></div></div></div>
-  <div class="check" data-repeat="checklist"><div class="n">3</div><div class="body"><b><span data-slot="check-3">{{확인할 항목}}</span></b><div class="how">확인 방법: <span data-slot="check-3-how">{{실행할 테스트·화면·명령}}</span></div></div></div>
-  <p class="hint">정확히 3개. 가장 중요한 것만 고른다.</p>
+  <h2><span class="no">8</span>구현 후 확인할 체크리스트 3개 <span class="hint">— verify 단계에서 확인합니다</span></h2>
+  <div class="check"><div class="n">1</div><div class="body"><b><span data-slot="check-1">{{확인할 항목 (눈으로 볼 수 있게)}}</span></b><div class="how">확인 방법: <span data-slot="check-1-how">{{실행할 테스트·화면·명령}}</span></div></div></div>
+  <div class="check"><div class="n">2</div><div class="body"><b><span data-slot="check-2">{{확인할 항목}}</span></b><div class="how">확인 방법: <span data-slot="check-2-how">{{실행할 테스트·화면·명령}}</span></div></div></div>
+  <div class="check"><div class="n">3</div><div class="body"><b><span data-slot="check-3">{{확인할 항목}}</span></b><div class="how">확인 방법: <span data-slot="check-3-how">{{실행할 테스트·화면·명령}}</span></div></div></div>
+  <p class="hint">정확히 3개로 부탁드립니다. 가장 중요한 것만 골라 주세요.</p>
 </section>
 
-<p class="footer">precheck@1 · 프로젝트 공통 템플릿 (통합 · 개발 · 리팩토링 · 버그수정 Loop 공용) · 점검 로그 <span data-slot="footer-log">{{로그 경로}}</span></p>
+<p class="footer">precheck@2 · 프로젝트 공통 템플릿 (통합 · 개발 · 리팩토링 · 버그수정 Loop 공용) · 점검 로그 <span data-slot="footer-log">{{로그 경로}}</span></p>
 </div>
 </body>
 </html>

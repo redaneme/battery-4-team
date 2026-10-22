@@ -1,0 +1,80 @@
+(function () {
+	const orderId = location.pathname.split('/').pop();
+	const titleEl = document.getElementById('orderTitle');
+	const messagesEl = document.getElementById('messages');
+	const infoEl = document.getElementById('orderInfo');
+	const historyEl = document.getElementById('historyRows');
+	let version = null;        // 화면에서 본 시점의 주문 version. 상태 변경 때 함께 보낸다.
+	let planDrawn = false;     // 저장된 계획은 바뀌지 않으므로 한 번만 그린다.
+
+	function showMessages(message, error) {
+		messagesEl.innerHTML = (message ? `<p class="alert ok">${esc(message)}</p>` : '')
+			+ (error ? `<p class="alert error">${esc(error)}</p>` : '');
+	}
+
+	function render(order) {
+		version = order.version;
+		titleEl.innerHTML = `주문 <span>#${order.id}</span>
+			<span class="badge badge-${esc(order.status)}">${esc(order.statusLabel)}</span>`;
+
+		infoEl.innerHTML = `
+			<dl class="meta">
+				<div><dt>확정 일시</dt><dd>${esc(order.confirmedAt)}</dd></div>
+				<div><dt>작성자</dt><dd>${esc(order.createdBy)}</dd></div>
+				<div><dt>경로</dt><dd>${esc(order.routeLabel)}</dd></div>
+				<div><dt>메모</dt><dd>${esc(order.memo != null ? order.memo : '-')}</dd></div>
+			</dl>`
+			+ (order.next.length === 0
+				? '<p class="muted">최종 상태라 더 바꿀 수 없습니다.</p>'
+				: `<div class="actions">${order.next.map(s => `
+					<form class="status-form" data-status="${esc(s.status)}" data-confirm="${esc(s.label)}(으)로 바꿉니다. 계속할까요?">
+						<button type="submit" class="${s.status === 'CANCELED' ? 'danger' : 'primary'}">${esc(s.label)}(으)로 변경</button>
+					</form>`).join('')}</div>`);
+
+		historyEl.innerHTML = order.history.map(h => `
+			<tr>
+				<td>${esc(h.changedAt)}</td>
+				<td>${esc(h.from != null ? h.from : '-')}</td>
+				<td>${esc(h.to)}</td>
+				<td>${esc(h.changedBy)}</td>
+			</tr>`).join('');
+
+		if (!planDrawn) {
+			planDrawn = true;
+			const stored = JSON.parse(order.planJson);
+			PlanView.renderSummary(document.getElementById('summary'), stored);
+			PlanView.renderDetails(document.getElementById('details'), stored);
+			BatteryAnim.mount(document.getElementById('anim'), stored, {autoplay: false});
+		}
+	}
+
+	/** 주문을 새로 읽어 화면을 갱신한다. 안내 문구는 갱신된 화면과 함께 보여 준다. */
+	async function load(message, error) {
+		try {
+			render(await getJson('/api/orders/' + orderId));
+			showMessages(message, error);
+		} catch (err) {
+			showMessages(null, error || err.message);
+		}
+	}
+
+	infoEl.addEventListener('submit', async e => {
+		e.preventDefault();
+		const f = e.target.closest('.status-form');
+		if (!f || !confirm(f.dataset.confirm)) return;
+		try {
+			const res = await postJson('/api/orders/' + orderId + '/status',
+				{status: f.dataset.status, version: version});
+			if (f.dataset.status === 'CANCELED') {
+				// 취소하면 주문이 삭제되지만 지금은 정해 둔 대로 상세 화면으로 이동한다. (알려진 결함: INTENT 9장 1번)
+				location.href = '/orders/' + orderId;
+				return;
+			}
+			await load(res.message, null);
+		} catch (err) {
+			await load(null, err.message);
+		}
+	});
+
+	load(null, null);
+})();

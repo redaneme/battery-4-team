@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="template" content="precheck@2">
+<title>구현 전 점검 · Thymeleaf 서버 렌더링을 정적 HTML과 JavaScript로 교체</title>
+<style>
+:root{
+  --bg:#f4f6fb; --card:#ffffff; --fg:#1b2333; --muted:#5d6a82; --line:#d5dcea; --soft:#eef2fa;
+  --accent:#2f6fed; --accent-bg:#e8f0ff;
+  --ok:#14946b; --ok-bg:#e3f6ee; --warn:#d9731a; --warn-bg:#ffefdd; --bad:#d23c4b; --bad-bg:#fde8ea;
+  --prep:#2f6fed; --prep-bg:#e8f0ff; --impl:#14946b; --impl-bg:#e3f6ee; --ver:#7a49d6; --ver-bg:#f0e9fd;
+  --hero-a:#2f6fed; --hero-b:#7a49d6; --on-hero:#ffffff;
+  --ok-ink:#0b6b4d; --warn-ink:#9a4a07; --bad-ink:#a8202f; /* 밝은 바탕 위 글자용(대비 4.5:1 이상) */
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 8px 22px rgba(20,30,60,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f131c; --card:#171c28; --fg:#e8ecf5; --muted:#9aa6bd; --line:#2d3649; --soft:#1d2433;
+    --accent:#7aa5ff; --accent-bg:#1b2742;
+    --ok:#4cd3a2; --ok-bg:#14302a; --warn:#ffa45c; --warn-bg:#3b2615; --bad:#ff8590; --bad-bg:#3d1c22;
+    --prep:#7aa5ff; --prep-bg:#1b2742; --impl:#4cd3a2; --impl-bg:#14302a; --ver:#b69af0; --ver-bg:#291f45;
+    --hero-a:#27408f; --hero-b:#4b2f8a; --shadow:none;
+    --ok-ink:#4cd3a2; --warn-ink:#ffa45c; --bad-ink:#ff8590;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.65 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:1px 6px;word-break:break-all}
+a{color:var(--accent)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px 56px}
+.tpl-banner{background:var(--warn-bg);color:var(--warn);border-bottom:2px dashed var(--warn);padding:10px 16px;text-align:center;font-size:13.5px;font-weight:700}
+/* 히어로 */
+.hero{margin:20px 0 8px;border-radius:20px;padding:26px 26px 22px;color:var(--on-hero);background:linear-gradient(135deg,var(--hero-a),var(--hero-b));box-shadow:var(--shadow)}
+.loops{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.lt{font-size:12.5px;font-weight:700;padding:2px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.45);color:rgba(255,255,255,.75)}
+body[data-loop="integrate"] .lt-integrate,body[data-loop="develop"] .lt-develop,
+body[data-loop="refactor"] .lt-refactor,body[data-loop="bugfix"] .lt-bugfix{background:#fff;color:#1b2333;border-color:#fff}
+.hero h1{margin:0 0 4px;font-size:28px;letter-spacing:-.4px}
+.hero .target{margin:0 0 12px;font-size:16.5px;opacity:.96}
+.hero .meta{margin:0;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;opacity:.9}
+.status-badge{display:inline-block;margin-bottom:12px;font-size:15px;font-weight:800;letter-spacing:.5px;padding:3px 16px;border-radius:999px;background:var(--card);color:var(--ok-ink)}
+body[data-status="HITL"] .status-badge{color:var(--warn-ink)}
+body[data-status="FAIL"] .status-badge{color:var(--bad-ink)}
+/* 섹션 */
+.sec{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px 20px}
+.sec h2{margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:10px}
+.sec h2 .no{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:13px;font-weight:800}
+.sec h3{margin:16px 0 6px;font-size:14.5px;color:var(--muted)}
+.sec p{margin:6px 0}
+.hint{color:var(--muted);font-size:13px}
+ul.list{margin:6px 0;padding-left:20px}
+ul.list li{margin:2px 0}
+/* 표 */
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft);font-size:13px;color:var(--muted);white-space:nowrap}
+td.num,th.num{text-align:right;white-space:nowrap}
+/* 칩: 글자와 함께 data-state(ok|warn|bad|none)를 바꿔 주세요. 색만으로 뜻을 전하지 않도록 글자는 항상 같이 써 주세요. */
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 10px;border-radius:999px;border:1px solid currentColor;white-space:nowrap;color:var(--muted);background:var(--soft)}
+.chip[data-state="ok"]{color:var(--ok-ink);background:var(--ok-bg)}
+.chip[data-state="warn"]{color:var(--warn-ink);background:var(--warn-bg)}
+.chip[data-state="bad"]{color:var(--bad-ink);background:var(--bad-bg)}
+.chip[data-state="none"]{color:var(--muted);background:var(--soft)}
+/* 요구사항·원칙 칩 격자 */
+.reqs{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.rq{display:flex;gap:8px;align-items:baseline;border:1px solid var(--line);border-radius:10px;padding:6px 10px;color:var(--muted);background:var(--soft);font-size:13.5px}
+.rq b{color:var(--muted);min-width:34px}
+.rq[data-rel="yes"]{color:var(--fg);background:var(--accent-bg);border-color:var(--accent)}
+.rq[data-rel="yes"] b{color:var(--accent)}
+.rq[data-rel="yes"]::after{content:"✔ 관련";margin-left:auto;white-space:nowrap;font-size:12px;font-weight:800;color:var(--fg)}
+/* 이해 점검 / 체크리스트 / 3단계 */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.two{grid-template-columns:1fr}.hero{padding:20px 16px}.hero h1{font-size:23px}.sec{padding:14px}}
+.mini{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--card)}
+.mini h3{margin:0 0 4px;font-size:15px;color:var(--fg)}
+.mini .k{font-size:12px;color:var(--muted);margin-top:6px}
+.check{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 0;background:var(--card)}
+.check .n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent-bg);color:var(--accent);font-weight:800;font-size:13px}
+.check .body{flex:1;min-width:0}
+.check .body b{display:block}
+.check .how{color:var(--muted);font-size:13.5px}
+/* 규모 미터 */
+.meter{display:flex;gap:6px;max-width:420px}
+.meter .seg{flex:1;text-align:center;font-size:12.5px;font-weight:700;padding:5px 0;border-radius:8px;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.meter[data-scale="small"] .s{background:var(--ok-bg);color:var(--ok-ink);border-color:var(--ok-ink)}
+.meter[data-scale="medium"] .m{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--warn-ink)}
+.meter[data-scale="large"] .l{background:var(--bad-bg);color:var(--bad-ink);border-color:var(--bad-ink)}
+.meter[data-scale="small"] .s::before,.meter[data-scale="medium"] .m::before,.meter[data-scale="large"] .l::before{content:"✔ "}
+/* Loop 종류별 섹션 */
+.for{display:none}
+body[data-loop="integrate"] .for-integrate,body[data-loop="develop"] .for-develop,
+body[data-loop="refactor"] .for-refactor,body[data-loop="bugfix"] .for-bugfix{display:block}
+.only-hitl{display:none}
+body[data-status="HITL"] .only-hitl{display:block}
+body[data-status="HITL"] .only-go{display:none}
+.footer{margin:26px 0 0;text-align:center;color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body data-loop="refactor" data-status="GO">
+<div class="wrap">
+
+<header class="hero">
+  <ul class="loops" aria-label="Loop 종류">
+    <li class="lt lt-refactor">리팩토링</li>
+  </ul>
+  <div class="status-badge"><span data-slot="status">GO</span></div>
+  <h1>구현 전 점검</h1>
+  <p class="target"><span data-slot="task">Thymeleaf 서버 렌더링 화면을 정적 HTML과 JavaScript(API 호출)로 바꾸되 사용자에게 보이는 동작과 화면 주소는 그대로 유지한다.</span></p>
+  <p class="meta"><span>날짜 <span data-slot="date">2026-10-22 11:08:42</span></span><span>회차 <span data-slot="round">재점검 (직전 점검이 HITL 이었고 사용자 결정 5건을 받은 뒤)</span></span><span>작성 prepare 에이전트</span><span>브랜치 <span data-slot="branch">feature/refactoring</span> · 커밋 <span data-slot="commit">e972056</span></span><span>요청자 <span data-slot="requester">yeri</span></span><span>로그 <span data-slot="log-path">docs/logs/prepare/inspection_20261022_110842.log</span></span></p>
+</header>
+
+<section class="sec" id="verdict">
+  <h2><span class="no">1</span>판단</h2>
+  <p><b><span data-slot="summary">리팩토링으로 진행 가능(GO): 기준선(JUnit 23건, E2E 45건)을 직접 확인했고 사용자 결정 5건이 모두 들어왔으며 큰 변경임을 사용자가 알고 있다.</span></b></p>
+  <h3>이유</h3>
+  <ul class="list"><li data-repeat="reason"><span data-slot="reason">버그가 아니라 리팩토링 요청이다. 화면 기술 교체이고 사용자에게 보이는 동작 유지가 조건이다. (INTENT 8.5: 화면 기술은 바꿔도 된다)</span></li>
+  <li data-repeat="reason"><span data-slot="reason">직전 점검의 질문 5건(테스트 헬퍼 수정 허용, 결함 3건 처리, 전체 E2E 설정, 문서 수정, 화면 주소 유지)에 사용자가 모두 답했다.</span></li>
+  <li data-repeat="reason"><span data-slot="reason">기준선을 직접 확인했다. ./gradlew cleanTest test 는 23건 전부 통과, 별도 포트 8093·메모리 DB 의 E2E 전체는 45건이 모두 기대한 결과(42건 통과 + test.fail() 3건 예상 실패)였다. 개발 서버(8080)와 개발 DB 는 쓰지 않았다.</span></li>
+  <li data-repeat="reason"><span data-slot="reason">큰 변경이지만 사용자가 요청에서 알고 있다고 밝혔다. DB·엔티티·핵심 업무 규칙 코드는 바꾸지 않는다.</span></li>
+  <li data-repeat="reason"><span data-slot="reason">문서 충돌 없음. INTENT 5.7 과 6장은 이 결정으로 달라지므로 문서를 먼저 고친다(INTENT 8.1, 사용자가 허용).</span></li></ul>
+  <div class="only-hitl">
+    <h3>⚠ 경고</h3>
+    <ul class="list"><li data-repeat="warning"><span data-slot="warning">큰 변경: 계층 전부, 대략 25~30개 파일. 사용자가 알고 있어 기록만 한다.</span></li>
+  <li data-repeat="warning"><span data-slot="warning">인증 경로: 정적 HTML 도 비로그인이면 /login 으로 가야 한다. forward 가 인터셉터를 다시 거치는지 확인하지 못했다.</span></li>
+  <li data-repeat="warning"><span data-slot="warning">비동기 렌더링: 화면이 fetch 뒤에 그려져, 기다리지 않고 바로 읽는 E2E 헬퍼가 간헐 실패할 수 있다.</span></li>
+  <li data-repeat="warning"><span data-slot="warning">결함 보존: 취소 직후 오류 화면과 없는 주문 번호의 500 화면을 일부러 그대로 둔다. 고치지 않는다.</span></li></ul>
+    <h3>사용자에게 확인할 질문</h3>
+    <ul class="list"><li data-repeat="question"><span data-slot="question">없음</span></li></ul>
+  </div>
+</section>
+
+<section class="sec" id="understand">
+  <h2><span class="no">2</span>이해 점검 <span class="hint">— 모르는 부분은 추측하지 않고 사람에게 확인을 요청해 주세요(HITL)</span></h2>
+  <div class="two">
+    <div class="mini">
+      <h3>배경 · 사용자가 어떤 상황인가 <span class="chip" data-state="ok" data-slot="background-state">이해함</span></h3>
+      <p><span data-slot="background">서버가 템플릿 6개로 목록·상세·마스터 값·로그인 사용자명·안내 문구를 그리고, 로그인·마스터 저장·상태 변경은 폼 POST 와 302 이동으로 처리한다. 주문 추가 화면만 이미 JSON API 를 쓴다. 이 렌더링을 정적 HTML 과 JS 가 API 로 받아 그리게 바꾸려는 상황이다.</span></p>
+      <div class="k">근거</div><p class="hint"><span data-slot="background-evidence">요청 문구, templates/*.html, AuthController·OrderController·MasterController·GlobalModelAttributes, LoginInterceptor, static/js/order-new.js</span></p>
+    </div>
+    <div class="mini">
+      <h3>목적 · 왜 필요한가 <span class="chip" data-state="ok" data-slot="purpose-state">이해함</span></h3>
+      <p><span data-slot="purpose">화면 구조를 정적 파일(프런트)과 JSON API(백엔드)로 나누되 사용자가 보는 화면·흐름·문구·주소는 같아야 한다. 끝나면 서버에 Thymeleaf 가 없고 E2E 가 기준선과 같은 결과(42건 통과 + 알려진 결함 3건 예상 실패)다.</span></p>
+      <div class="k">근거</div><p class="hint"><span data-slot="purpose-evidence">요청 문구와 사용자 결정 (1)~(5), INTENT 8.5(화면 기술은 바꿔도 된다)</span></p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="scale">
+  <h2><span class="no">3</span>규모와 위험</h2>
+  <p>변경 규모 <span class="hint">(여러 계층, 많은 파일, DB 변경, 핵심 규칙 변경, 되돌리기 어려움 → 큼)</span></p>
+  <div class="meter" data-scale="large"><span class="seg s">작음</span><span class="seg m">중간</span><span class="seg l">큼</span></div>
+  <p>사용자가 이 규모·위험을 알고 있는가: <b><span data-slot="user-aware">예</span></b> <span class="hint">— <span data-slot="user-aware-why">"여러 계층에 걸친 큰 변경임을 알고 있어" 와 결정 5건을 요청에 적었다.</span></span></p>
+  <div class="tbl"><table>
+    <thead><tr><th>위험</th><th>심각도</th><th>대응</th></tr></thead>
+    <tbody>
+      <tr data-repeat="risk"><td><span data-slot="risk">동시 변경 보호(원칙 5): 상태 변경에 화면에서 본 version 을 서버가 계속 받아야 한다</span></td><td><span class="chip" data-state="bad" data-slot="risk-level">높음</span></td><td><span data-slot="risk-fix">상세 API 응답의 version 을 JS 가 보관해 보낸다. 충돌 문구는 서버가 만든다. E2E-034 로 확인하고 오류 뒤에는 새로 읽은 상태를 보여 준다.</span></td></tr>
+  <tr data-repeat="risk"><td><span data-slot="risk">인증 경로(원칙 14): 정적 HTML 이 인터셉터를 우회할 수 있다. 제외 경로에 /login.html, /api/login 이 새로 필요하다</span></td><td><span class="chip" data-state="bad" data-slot="risk-level">높음</span></td><td><span data-slot="risk-fix">그 둘만 제외하고 나머지는 막는다. 비로그인 302 와 /api 401 을 E2E-003·004 와 JUnit 단언으로 확인한다.</span></td></tr>
+  <tr data-repeat="risk"><td><span data-slot="risk">뒤로 가기(E2E-005): 정적 페이지가 캐시되어 로그아웃 뒤에도 보일 수 있다</span></td><td><span class="chip" data-state="warn" data-slot="risk-level">중간</span></td><td><span data-slot="risk-fix">화면 응답에 Cache-Control: no-store, 각 페이지 JS 가 첫 API 가 401 이면 /login 으로 이동.</span></td></tr>
+  <tr data-repeat="risk"><td><span data-slot="risk">즉시 읽는 헬퍼의 간헐 실패(예: e2e-028 이 goto 직후 이력 행 수 1을 기대)</span></td><td><span class="chip" data-state="warn" data-slot="risk-level">중간</span></td><td><span data-slot="risk-fix">헬퍼에 화면이 그려질 때까지 기다리는 단계를 넣는다(단언 의도는 그대로). 연속 2회 실행으로 확인.</span></td></tr>
+  <tr data-repeat="risk"><td><span data-slot="risk">취소 뒤 이동 경쟁: 예전엔 서버 302 가 응답에 들어 있었으나 이제 JS 가 응답을 받은 뒤 이동한다. E2E-032 가 바로 /orders 로 goto 하면 겹칠 수 있다</span></td><td><span class="chip" data-state="warn" data-slot="risk-level">중간</span></td><td><span data-slot="risk-fix">응답 처리 직후 동기적으로 이동한다. 반복 실행으로 확인한다.</span></td></tr>
+  <tr data-repeat="risk"><td><span data-slot="risk">마스터 저장(원칙 7): 전부 아니면 전무, 오류 목록, 오류 시 입력값 유지, 성공 뒤 안내와 값 다시 읽기를 JS 가 재현</span></td><td><span class="chip" data-state="warn" data-slot="risk-level">중간</span></td><td><span data-slot="risk-fix">서버 검증(updateMaster)은 그대로. form[action="/master"] 와 input name 유지(E2E-040 이 noValidate 를 켠다).</span></td></tr>
+  <tr data-repeat="risk"><td><span data-slot="risk">서버 포맷 차이: 날짜 yyyy-MM-dd HH:mm, 천 단위 쉼표, 억원 소수 2자리</span></td><td><span class="chip" data-state="warn" data-slot="risk-level">중간</span></td><td><span data-slot="risk-fix">서버가 이미 포맷한 문자열을 API 로 보내 차이를 없앤다.</span></td></tr>
+  <tr data-repeat="risk"><td><span data-slot="risk">로그인 실패를 401 로 주면 공통 처리가 /login 이동으로 오해해 문구가 안 보인다</span></td><td><span class="chip" data-state="ok" data-slot="risk-level">낮음</span></td><td><span data-slot="risk-fix">로그인 실패는 400 + error 문구로 주고 login.js 가 직접 처리한다.</span></td></tr>
+    </tbody></table></div>
+  <h3>가정 <span class="hint">(확인하지 못한 것)</span></h3>
+  <ul class="list"><li data-repeat="assumption"><span data-slot="assumption">Spring Boot 4.1.1 에서 Thymeleaf 를 빼도 /error 기본 화면(Whitelabel)이 지금과 같게 나오는지: 확인하지 못함. 구현 뒤 E2E-033·035 가 계속 예상 실패인지로 확인한다.</span></li>
+  <li data-repeat="assumption"><span data-slot="assumption">forward 요청이 인터셉터를 다시 거치는지: 확인하지 못함. 구현 때 확인한다.</span></li>
+  <li data-repeat="assumption"><span data-slot="assumption">Playwright 의 Chrome 에서 뒤로 가기 캐시 동작: 확인하지 못함. E2E-005 실행으로 확인한다.</span></li>
+  <li data-repeat="assumption"><span data-slot="assumption">docs/understand/* 안내서가 화면 구조를 설명하는지: grep 에서 Thymeleaf·templates 언급은 안 나왔고 내용은 확인하지 못함.</span></li></ul>
+</section>
+
+<section class="sec" id="requirements">
+  <h2><span class="no">4</span>요구사항 · 원칙과의 관계</h2>
+  <p class="hint">기준 문서: PRD.md <span data-slot="prd-version">c4aded2</span> · INTENT.md <span data-slot="intent-version">e972056 + 작업 트리의 미커밋 한 줄(BatteryService.confirm → OrderService.confirm)</span> (아래 R1~R11, 원칙 1~14는 이 버전 기준입니다. 문서가 바뀌면 목록도 고쳐 주세요)</p>
+  <h3>PRD 요구사항 <span class="hint">(관련 있는 항목은 <code>data-rel="yes"</code>)</span></h3>
+  <ul class="reqs">
+    <li class="rq" data-rel="no" data-req="R1"><b>R1</b>주문 수량 입력</li>
+    <li class="rq" data-rel="no" data-req="R2"><b>R2</b>경로안 계산·비교</li>
+    <li class="rq" data-rel="no" data-req="R3"><b>R3</b>경로안 선택·메모·확정</li>
+    <li class="rq" data-rel="no" data-req="R4"><b>R4</b>확정 주문 불변(스냅샷)</li>
+    <li class="rq" data-rel="no" data-req="R5"><b>R5</b>낡은 기준으로 확정 거부</li>
+    <li class="rq" data-rel="yes" data-req="R6"><b>R6</b>주문 목록·상세 조회</li>
+    <li class="rq" data-rel="yes" data-req="R7"><b>R7</b>상태 변경·이력</li>
+    <li class="rq" data-rel="yes" data-req="R8"><b>R8</b>기준 정보 관리</li>
+    <li class="rq" data-rel="yes" data-req="R9"><b>R9</b>입력 검증·이유 안내</li>
+    <li class="rq" data-rel="yes" data-req="R10"><b>R10</b>동시 변경 보호</li>
+    <li class="rq" data-rel="yes" data-req="R11"><b>R11</b>로그인한 사용자만</li>
+  </ul>
+  <h3>INTENT 원칙 <span class="hint">(깨질 수 있는 원칙은 <code>data-rel="yes"</code>)</span></h3>
+  <ul class="reqs">
+    <li class="rq" data-rel="no" data-principle="1"><b>#1</b>비교가 먼저다</li>
+    <li class="rq" data-rel="no" data-principle="2"><b>#2</b>서버가 다시 계산한다</li>
+    <li class="rq" data-rel="no" data-principle="3"><b>#3</b>기준이 바뀌면 확정 거부</li>
+    <li class="rq" data-rel="yes" data-principle="4"><b>#4</b>확정 주문은 스냅샷</li>
+    <li class="rq" data-rel="yes" data-principle="5"><b>#5</b>동시 변경을 덮어쓰지 않는다</li>
+    <li class="rq" data-rel="no" data-principle="6"><b>#6</b>틀린 계산을 숨기지 않는다</li>
+    <li class="rq" data-rel="yes" data-principle="7"><b>#7</b>입력은 전부 검증</li>
+    <li class="rq" data-rel="yes" data-principle="8"><b>#8</b>오류는 이유와 함께</li>
+    <li class="rq" data-rel="no" data-principle="9"><b>#9</b>변경에는 흔적을 남긴다</li>
+    <li class="rq" data-rel="yes" data-principle="10"><b>#10</b>규칙은 테스트로 고정</li>
+    <li class="rq" data-rel="no" data-principle="11"><b>#11</b>Planner 는 DB·화면을 모른다</li>
+    <li class="rq" data-rel="no" data-principle="12"><b>#12</b>금액은 원 단위 정수</li>
+    <li class="rq" data-rel="no" data-principle="13"><b>#13</b>기준 정보는 데이터</li>
+    <li class="rq" data-rel="yes" data-principle="14"><b>#14</b>로그인한 사용자만</li>
+  </ul>
+  <div class="tbl"><table>
+    <thead><tr><th>번호</th><th>이번 작업과의 관계</th></tr></thead>
+    <tbody><tr data-repeat="relation"><td><span data-slot="relation-id">R11, 원칙 14</span></td><td><span data-slot="relation">정적 HTML 도 비로그인이면 /login 으로 보내고 API 는 401 이어야 한다. 인터셉터 제외 경로가 바뀌는 곳이라 가장 조심할 곳.</span></td></tr>
+  <tr data-repeat="relation"><td><span data-slot="relation-id">R10, 원칙 5</span></td><td><span data-slot="relation">상태 변경이 화면에서 본 version 으로 충돌을 거부하는 방식을 API 로 옮긴다. 서버 로직은 그대로.</span></td></tr>
+  <tr data-repeat="relation"><td><span data-slot="relation-id">R6</span></td><td><span data-slot="relation">목록·상세·이력 화면이 같은 내용으로 보여야 한다. 상세는 저장된 스냅샷으로 그린다(원칙 4).</span></td></tr>
+  <tr data-repeat="relation"><td><span data-slot="relation-id">R8, R9, 원칙 7</span></td><td><span data-slot="relation">마스터 화면의 값 표시와 전부 아니면 전무 저장, 오류 목록 안내를 JS 로 재현한다.</span></td></tr>
+  <tr data-repeat="relation"><td><span data-slot="relation-id">R7, 원칙 9</span></td><td><span data-slot="relation">상태 변경 화면(확인 창, 안내, 이력)은 그대로. 이력 기록은 서버가 그대로 한다.</span></td></tr>
+  <tr data-repeat="relation"><td><span data-slot="relation-id">원칙 8</span></td><td><span data-slot="relation">업무 오류 문구를 화면에 그대로 보여 준다. 모호한 문구로 바꾸지 않는다.</span></td></tr>
+  <tr data-repeat="relation"><td><span data-slot="relation-id">원칙 10</span></td><td><span data-slot="relation">테스트 헬퍼는 API 방식으로 바꾸되 시나리오와 단언의 의도를 유지하고 느슨하게 하지 않는다.</span></td></tr>
+  <tr data-repeat="relation"><td><span data-slot="relation-id">INTENT 5.7, 6장, 8.3</span></td><td><span data-slot="relation">"화면은 서버에서 그린다" 결정과 "서버 렌더링 + 순수 JS" 표 항목, master.html 언급이 달라지므로 문서를 먼저 고친다.</span></td></tr></tbody></table></div>
+  <h3>범위 밖 확정 (PRD 10장) 저촉 여부</h3>
+  <p><span data-slot="out-of-scope">저촉하지 않음. PRD 10장은 화면 렌더링 방식을 정하지 않고, 이번 작업은 새 기능이나 범위 확장이 없다.</span></p>
+  <h3>충돌·불일치</h3>
+  <ul class="list"><li data-repeat="conflict"><span data-slot="conflict">INTENT 5.7 과 6장 표가 서버 렌더링을 설계 결정으로 적고 있어 이번 변경과 어긋난다. 사용자가 문서를 고쳐도 된다고 했으므로 이번에 함께 고친다.</span></li>
+  <li data-repeat="conflict"><span data-slot="conflict">docs/templates/precheck.template.html 안의 예시 파일명(AppController, BatteryService)이 현재 코드와 다르다. 템플릿 원본은 고치지 않는다.</span></li></ul>
+</section>
+
+<section class="sec" id="impact">
+  <h2><span class="no">5</span>영향 범위 <span class="hint">— 이 프로젝트의 계층별</span></h2>
+  <div class="tbl"><table>
+    <thead><tr><th style="width:27%">계층</th><th style="width:12%">변경</th><th style="width:33%">바꿀 파일·메서드</th><th style="width:28%">이유</th></tr></thead>
+    <tbody>
+      <tr data-layer="화면 템플릿"><td><b>화면 템플릿</b><div class="hint"><code>src/main/resources/templates/*.html</code></div></td>
+        <td><span class="chip" data-state="warn" data-slot="layer-1-state">변경</span></td>
+        <td><span data-slot="layer-1-files">templates/*.html 6개 삭제, static/ 아래 login.html · orders.html · order-new.html · order-detail.html · master.html 신규</span><div class="hint">login · orders · order-new · order-detail · master · fragments</div></td>
+        <td><span data-slot="layer-1-why">서버 렌더링 제거. 클래스·id·name·문구는 그대로 옮겨 E2E 선택자를 유지한다.</span></td></tr>
+      <tr data-layer="화면 스크립트"><td><b>화면 스크립트</b><div class="hint"><code>src/main/resources/static/js/*.js</code></div></td>
+        <td><span class="chip" data-state="warn" data-slot="layer-2-state">변경</span></td>
+        <td><span data-slot="layer-2-files">common.js(헤더 주입·getJson·401 처리·로그아웃), login.js · orders.js · order-detail.js · master.js 신규, order-new.js 는 헤더 연결 정도, anim.js · planview.js 불변</span><div class="hint">order-new.js · planview.js · anim.js · common.js</div></td>
+        <td><span data-slot="layer-2-why">서버가 하던 목록·상세·마스터·로그인 처리를 API 호출로 옮긴다.</span></td></tr>
+      <tr data-layer="컨트롤러"><td><b>컨트롤러</b><div class="hint"><code>controller/AppController.java</code></div></td>
+        <td><span class="chip" data-state="warn" data-slot="layer-3-state">변경</span></td>
+        <td><span data-slot="layer-3-files">AuthController · OrderController · MasterController 를 화면 경로(forward)와 JSON API 로 정리, GlobalModelAttributes 삭제, ApiController 에 목록·상세·상태 변경·마스터 저장·로그인·로그아웃·현재 사용자 API 추가</span><div class="hint">화면 요청·JSON API·로그인 처리</div></td>
+        <td><span data-slot="layer-3-why">폼 POST 와 모델 렌더링 제거. 화면 주소는 유지하고 /orders/{id} 는 존재 확인을 남겨 결함을 보존한다.</span></td></tr>
+      <tr data-layer="서비스"><td><b>서비스</b><div class="hint"><code>service/BatteryService.java</code></div></td>
+        <td><span class="chip" data-state="ok" data-slot="layer-4-state">확인만</span></td>
+        <td><span data-slot="layer-4-files">OrderService · MasterService.updateMaster · SimulationService 불변. MasterService.toForm 은 유지</span><div class="hint">확정·상태 변경·기준 정보 검증·버전 검사 (BusinessException)</div></td>
+        <td><span data-slot="layer-4-why">업무 규칙(상태 전이·version 검사·전부 아니면 전무 저장)은 바꾸지 않는다. toForm 을 새 API 가 돌려줘 MasterFormTests 를 그대로 둔다.</span></td></tr>
+      <tr data-layer="경로 계산"><td><b>경로 계산</b><div class="hint"><code>simulation/Planner.java · Master · Plan · StoredPlan</code></div></td>
+        <td><span class="chip" data-state="none" data-slot="layer-5-state">없음</span></td>
+        <td><span data-slot="layer-5-files">없음</span><div class="hint">DB·화면을 모르는 순수 계산 (원칙 11)</div></td>
+        <td><span data-slot="layer-5-why">Planner 는 DB·화면을 모른다(원칙 11). E2E-013b 결함 유지의 전제.</span></td></tr>
+      <tr data-layer="엔티티·DB"><td><b>엔티티·DB</b><div class="hint"><code>entity/* · repository/* · H2 ./data/battery</code></div></td>
+        <td><span class="chip" data-state="none" data-slot="layer-6-state">없음</span></td>
+        <td><span data-slot="layer-6-files">없음</span><div class="hint">Order · OrderStatusHistory · Factory · Route · Setting</div></td>
+        <td><span data-slot="layer-6-why">엔티티·스키마·저장 형식 변경 없음. 확정 주문 스냅샷(planJson)은 그대로 읽어 그린다.</span></td></tr>
+      <tr data-layer="설정·로그인"><td><b>설정·로그인</b><div class="hint"><code>config/*</code></div></td>
+        <td><span class="chip" data-state="warn" data-slot="layer-7-state">변경</span></td>
+        <td><span data-slot="layer-7-files">WebConfig 의 인터셉터 제외 경로(/login.html, /api/login 추가), LoginInterceptor 는 변경 없거나 최소</span><div class="hint">LoginInterceptor · WebConfig · DataInitializer</div></td>
+        <td><span data-slot="layer-7-why">정적 HTML 도 로그인 전에는 /login 으로 보내야 하고 /api 는 401 을 유지해야 한다(원칙 14).</span></td></tr>
+    </tbody></table></div>
+</section>
+
+<section class="sec" id="tests">
+  <h2><span class="no">6</span>기존 테스트 · 시나리오</h2>
+  <p class="hint">E2E는 개발 서버(8080)와 개발 DB(<code>./data/battery</code>)가 아니라, 따로 띄운 앱(별도 포트·별도 DB)에서 실행합니다. <code>test.fail()</code>로 표시한 알려진 결함 테스트는 실패하는 것이 정상입니다. 목록은 <code>grep -rn "test.fail" src/test/e2e</code> 로 확인해 주세요.</p>
+  <h3>JUnit (<code>src/test</code>)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>테스트</th><th>관련</th><th>메모</th></tr></thead>
+    <tbody>
+      <tr data-junit="OrderFlowTests"><td><b>OrderFlowTests</b><div class="hint">주문 확정·상태 변경·기준 정보 검증·로그인 흐름 (MockMvc)</div></td>
+        <td><span class="chip" data-state="warn" data-slot="junit-OrderFlowTests-rel">관련</span></td>
+        <td><span data-slot="junit-OrderFlowTests-note">로그인(POST /login), 마스터 저장(POST /master, redirectedUrl), 페이지 렌더(GET 200)가 폼·뷰 전제라 수정한다. 단언 수는 유지한다. 비로그인 정적 경로 단언 1개 추가를 검토한다.</span></td></tr>
+      <tr data-junit="PlannerTest"><td><b>PlannerTest</b><div class="hint">방문 횟수·적재량·재고 상한·출항 시점·비용 대소 등 계산 규칙</div></td>
+        <td><span class="chip" data-state="ok" data-slot="junit-PlannerTest-rel">영향 없음</span></td>
+        <td><span data-slot="junit-PlannerTest-note">계산만 검증한다. 변경 없음. 기준선 12건 통과.</span></td></tr>
+      <tr data-junit="DemoApplicationTests"><td><b>DemoApplicationTests</b><div class="hint">스프링 컨텍스트가 뜨는지</div></td>
+        <td><span class="chip" data-state="ok" data-slot="junit-DemoApplicationTests-rel">관련</span></td>
+        <td><span data-slot="junit-DemoApplicationTests-note">Thymeleaf 제거 뒤에도 컨텍스트가 뜨는지 확인해 준다.</span></td></tr>
+    </tbody></table></div>
+  <p class="hint">아래 표는 작성할 때의 목록입니다. 테스트가 늘었다면 <code>ls src/test/java src/test/e2e</code> 로 확인하고 행을 추가해 주세요.</p>
+  <h3>E2E (<code>src/test/e2e</code>) — 시나리오 흐름별</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>흐름</th><th>시나리오</th><th>파일</th><th>관련</th><th>메모</th></tr></thead>
+    <tbody>
+      <tr data-e2e="1 로그인·접근 통제"><td><b>1 로그인·접근 통제</b></td><td>E2E-001~005</td><td><code>login-access.spec.ts</code></td>
+        <td><span class="chip" data-state="warn" data-slot="e2e-1-rel">관련</span></td>
+        <td><span data-slot="e2e-1-note">001~005. 로그인 방식·접근 통제·뒤로 가기 캐시가 바뀌는 부분이라 가장 위험하다. helpers.ts login()·loginUi() 수정.</span></td></tr>
+      <tr data-e2e="2 주문 수량 입력"><td><b>2 주문 수량 입력</b></td><td>E2E-006~010</td><td><code>order-quantity.spec.ts</code></td>
+        <td><span class="chip" data-state="ok" data-slot="e2e-2-rel">관련</span></td>
+        <td><span data-slot="e2e-2-note">006~010. 주문 추가 화면은 이미 JS 라 거의 그대로. 헤더 주입만 확인.</span></td></tr>
+      <tr data-e2e="3 경로안 계산·비교"><td><b>3 경로안 계산·비교</b></td><td>E2E-011~014</td><td><code>simulation.spec.ts</code></td>
+        <td><span class="chip" data-state="ok" data-slot="e2e-3-rel">관련</span></td>
+        <td><span data-slot="e2e-3-note">011~014. 계산·화면 동일. 013b 는 예상 실패 유지.</span></td></tr>
+      <tr data-e2e="4 주문 확정"><td><b>4 주문 확정</b></td><td>E2E-015~021</td><td><code>confirm.spec.ts · e2e-021.spec.ts</code></td>
+        <td><span class="chip" data-state="ok" data-slot="e2e-4-rel">관련</span></td>
+        <td><span data-slot="e2e-4-note">015~021. 확정은 이미 API. 확정 뒤 상세 화면 이동과 그리기가 새 구조인지 확인.</span></td></tr>
+      <tr data-e2e="5 주문 목록·상세"><td><b>5 주문 목록·상세</b></td><td>E2E-022~026</td><td><code>e2e-022~026.spec.ts</code></td>
+        <td><span class="chip" data-state="warn" data-slot="e2e-5-rel">관련</span></td>
+        <td><span data-slot="e2e-5-note">022~026. 목록·상세가 JS 렌더링으로 바뀐다. 상세·이력을 바로 읽는 헬퍼에 렌더 대기 필요.</span></td></tr>
+      <tr data-e2e="6 주문 상태 관리"><td><b>6 주문 상태 관리</b></td><td>E2E-027~035</td><td><code>e2e-027~030.spec.ts · e2e031-041.spec.ts</code></td>
+        <td><span class="chip" data-state="warn" data-slot="e2e-6-rel">관련</span></td>
+        <td><span data-slot="e2e-6-note">027~035. 상태 변경이 폼에서 API 로 바뀐다. 031 의 readVersion·postStatus, 032 의 취소 뒤 이동 경쟁, 033·035 예상 실패 유지, 034 충돌 거부 확인.</span></td></tr>
+      <tr data-e2e="7 기준 정보(마스터)"><td><b>7 기준 정보(마스터)</b></td><td>E2E-036~040</td><td><code>e2e031-041.spec.ts</code></td>
+        <td><span class="chip" data-state="warn" data-slot="e2e-7-rel">관련</span></td>
+        <td><span data-slot="e2e-7-note">036~040. 마스터 폼 저장이 JSON API 로 바뀐다. form[action] 과 input name 유지, saveMaster 302→200.</span></td></tr>
+      <tr data-e2e="8 대표 종단 흐름"><td><b>8 대표 종단 흐름</b></td><td>E2E-041</td><td><code>e2e031-041.spec.ts</code></td>
+        <td><span class="chip" data-state="ok" data-slot="e2e-8-rel">관련</span></td>
+        <td><span data-slot="e2e-8-note">041. 로그인부터 로그아웃까지 전체를 화면으로 통과하는 대표 스모크.</span></td></tr>
+    </tbody></table></div>
+  <h3>알려진 결함 테스트 (<code>test.fail()</code>)에 미치는 영향</h3>
+  <p><span data-slot="known-defects">의도적으로 보존한다. E2E-033(취소 직후 이동)은 취소 뒤 /orders/{id} 로 이동하는 현재 동작을, E2E-035(없는 주문 번호)는 존재 확인 뒤 예외를 그대로 던져 HTTP 500 기본 오류 화면이 나오는 현재 동작을, E2E-013b 는 Planner 를 건드리지 않아 그대로 실패한다. 구현 후에도 세 건이 계속 예상 실패여야 한다. 결함 수정은 별도 버그수정 Loop.</span></p>
+  <h3>테스트 공백</h3>
+  <ul class="list"><li data-repeat="gap"><span data-slot="gap">정적 HTML 직접 접근(예: /orders.html)이 비로그인에서 막히는지 확인하는 테스트가 없다.</span></li>
+  <li data-repeat="gap"><span data-slot="gap">전체 E2E(001~041)를 격리 포트·별도 DB 로 돌리는 설정이 없다(기존 설정은 021~030 만). 이번에 추가한다.</span></li>
+  <li data-repeat="gap"><span data-slot="gap">로그인 흐름 JUnit 이 얇다(INTENT 9.5). 이번에 늘리지 않고 인증 경로 단언 1개만 검토한다.</span></li></ul>
+  <h3>추가·수정할 테스트 <span class="hint">(중복되거나 필요 없는 테스트는 만들지 말아 주세요)</span></h3>
+  <div class="tbl"><table>
+    <thead><tr><th>테스트</th><th>종류</th><th>이유</th></tr></thead>
+    <tbody><tr data-repeat="new-test"><td><span data-slot="new-test">전체 E2E(001~041)용 Playwright 설정 (포트·메모리 DB 분리)</span></td><td><span data-slot="new-test-kind">E2E 설정(실행 수단)</span></td><td><span data-slot="new-test-why">지금은 격리 환경에서 전체를 돌릴 방법이 없어 기준선 비교가 안 된다. 사용자가 추가를 허용했다.</span></td></tr>
+  <tr data-repeat="new-test"><td><span data-slot="new-test">비로그인으로 정적 페이지 경로와 /api/orders 를 부르면 /login 이동·401 임을 보는 단언 1개</span></td><td><span data-slot="new-test-kind">JUnit</span></td><td><span data-slot="new-test-why">정적 HTML 이 인증을 우회하지 않는다는 원칙 14 를 직접 지킨다. 잘못되면 실제로 실패한다.</span></td></tr></tbody></table></div>
+</section>
+
+<section class="sec for for-refactor" id="loop-refactor">
+  <h2><span class="no">★</span>리팩토링 Loop 점검</h2>
+  <ul class="list">
+    <li>바뀌면 안 되는 동작(불변 목록): <span data-slot="refactor-invariants">비로그인이면 화면은 본문 없이 /login 으로 보내고 API 는 401. 로그인 성공 시 /orders, 실패 시 /login 에 머물며 같은 오류 문구, 헤더에 사용자명, 로그아웃 뒤 뒤로 가기에 주문 목록이 안 보임. 주문 목록(최신순, 상태 칩 건수, 필터, 날짜·쉼표·억원 표기, "주문이 없습니다."), 주문 상세(스냅샷으로 그린 요약·표·애니메이션, 이력, 상태 변경 확인 창 문구, 성공·충돌 안내 문구, 최종 상태 문구), 마스터(값 표시, 전부 아니면 전무 저장, 오류 목록, 입력값 유지, 저장 안내), 화면 주소 5개, 알려진 결함 3건의 현재 동작.</span></li>
+    <li>동작이 같음을 보장하는 안전망: <span data-slot="refactor-safety">JUnit 23건(OrderFlowTests 9, PlannerTest 12, DemoApplicationTests 1, MasterFormTests 1)과 E2E 45건(001~041, 013b 포함). 기준선은 이번 점검에서 직접 실행해 모두 기대한 결과임을 확인했다(JUnit 전부 통과, E2E 42건 통과 + test.fail 3건 예상 실패, 포트 8093·메모리 DB).</span></li>
+    <li>이번에 하지 않는 정리: <span data-slot="refactor-out">결함 수정(E2E-033·035·013b), 서비스·Planner 의 규칙 변경, 엔티티·DB 변경, CSS·애니메이션 로직 정리, 포맷터 일괄 적용, 계정·보안(CSRF) 추가, 새 기능.</span></li>
+  </ul>
+</section>
+
+<section class="sec" id="plan">
+  <h2><span class="no">7</span>구현 계획</h2>
+  <div class="tbl"><table>
+    <thead><tr><th class="num">단계</th><th>내용</th></tr></thead>
+    <tbody><tr data-repeat="plan"><td class="num"><span data-slot="plan-step">1</span></td><td><span data-slot="plan-detail">문서 먼저: INTENT 5.7, 6장 표, 8.3 의 master.html 줄을 새 구조에 맞게 고치고 미커밋 한 줄도 함께 정리한다. (INTENT 8.1)</span></td></tr>
+  <tr data-repeat="plan"><td class="num"><span data-slot="plan-step">2</span></td><td><span data-slot="plan-detail">JSON API 추가(기존 서비스 호출만): POST /api/login(실패 400+문구), POST /api/logout, GET /api/me, GET /api/orders?status=(목록+건수+전체 수), GET /api/orders/{id}(상세+이력+저장된 계획+version+다음 상태), POST /api/orders/{id}/status(status, version, 오류는 기존 400/409 규칙), GET /api/master/form(MasterService.toForm), POST /api/master(오류는 messages 목록).</span></td></tr>
+  <tr data-repeat="plan"><td class="num"><span data-slot="plan-step">3</span></td><td><span data-slot="plan-detail">화면 경로: /, /login, /orders, /orders/new, /master, /orders/{id} 를 정적 HTML 로 forward. /orders/{id} 는 정적 HTML 을 내보내기 전에 지금처럼 존재 확인(getOrder)을 하고 예외를 그대로 던져 결함을 보존한다. no-store 헤더, 인터셉터 제외 경로 조정. 폼 POST 핸들러와 GlobalModelAttributes 삭제.</span></td></tr>
+  <tr data-repeat="plan"><td class="num"><span data-slot="plan-step">4</span></td><td><span data-slot="plan-detail">정적 HTML 5개와 JS(common, login, orders, order-detail, master)를 만든다. 클래스·id·name·문구는 템플릿과 같게. 상세는 version 을 JS 가 보관하고, 오류 뒤에도 새로 읽는다. 취소 성공 뒤에는 지금처럼 /orders/{id} 로 이동한다.</span></td></tr>
+  <tr data-repeat="plan"><td class="num"><span data-slot="plan-step">5</span></td><td><span data-slot="plan-detail">템플릿 6개, spring-boot-starter-thymeleaf, spring-boot-starter-thymeleaf-test, spring.thymeleaf.cache 를 지운다.</span></td></tr>
+  <tr data-repeat="plan"><td class="num"><span data-slot="plan-step">6</span></td><td><span data-slot="plan-detail">테스트 수정: helpers.ts·common-helpers.ts 의 로그인·마스터 저장·상태 변경을 API 로, 상세·목록 렌더 대기 추가, e2e031-041.spec.ts 의 readVersion·postStatus·저장 응답 코드(302→200), OrderFlowTests 의 로그인·마스터 호출과 페이지 단언. 시나리오와 단언의 의도는 유지한다.</span></td></tr>
+  <tr data-repeat="plan"><td class="num"><span data-slot="plan-step">7</span></td><td><span data-slot="plan-detail">전체 E2E 설정을 추가한다(별도 포트, 메모리 DB, 001~041).</span></td></tr>
+  <tr data-repeat="plan"><td class="num"><span data-slot="plan-step">8</span></td><td><span data-slot="plan-detail">이번에 하지 않는 것: 결함 수정(E2E-033·035·013b), Planner·서비스 규칙 변경, 엔티티·DB 변경, CSS·애니메이션 로직 변경, 유사 정리, 포맷터 일괄 적용, 계정·보안(CSRF) 추가, 새 기능.</span></td></tr></tbody></table></div>
+  <p class="hint only-hitl">HITL이면 계획은 비워 두셔도 됩니다. 사용자의 답을 받은 뒤 다시 점검하겠습니다.</p>
+</section>
+
+<section class="sec" id="checklist">
+  <h2><span class="no">8</span>구현 후 확인할 체크리스트 3개 <span class="hint">— verify 단계에서 확인합니다</span></h2>
+  <div class="check"><div class="n">1</div><div class="body"><b><span data-slot="check-1">불변 동작이 그대로다: 로그인 통제(비로그인 302, API 401), 로그인·로그아웃·뒤로 가기, 목록·상세·마스터의 문구·주소·건수, 상태 변경의 확인 창·안내·충돌 거부, 마스터의 전부 아니면 전무 저장</span></b><div class="how">확인 방법: <span data-slot="check-1-how">새 전체 E2E 설정으로 001~041 실행, 서버 기동 후 비로그인으로 /orders.html 등 정적 경로와 /api/orders 를 불러 /login 이동·401 확인</span></div></div></div>
+  <div class="check"><div class="n">2</div><div class="body"><b><span data-slot="check-2">안전망이 기준선과 같게 통과한다: JUnit 23건 이상 전부 통과(수정한 OrderFlowTests 도 단언 수 유지), E2E 45건이 기준선처럼 42건 통과 + 3건 예상 실패, 연속 2회 실행해도 같다</span></b><div class="how">확인 방법: <span data-slot="check-2-how">./gradlew cleanTest test 와 전체 E2E 설정을 2회 실행해 결과를 기준선(JUnit 23건, E2E 45건 중 test.fail 3건)과 비교</span></div></div></div>
+  <div class="check"><div class="n">3</div><div class="body"><b><span data-slot="check-3">기존 Regression Test 전체가 기대한 결과이고 알려진 결함이 보존됐다: E2E-033, 035, 013b 가 계속 예상 실패이며 Thymeleaf 가 완전히 빠졌다</span></b><div class="how">확인 방법: <span data-slot="check-3-how">전체 E2E 에서 위 3건이 x 로 남는지, grep -ri thymeleaf build.gradle.kts src/main 이 비었는지, src/main/resources/templates 가 없는지, 테스트 diff 에서 단언이 느슨해지지 않았는지 확인</span></div></div></div>
+  <p class="hint">정확히 3개로 부탁드립니다. 가장 중요한 것만 골라 주세요.</p>
+</section>
+
+<p class="footer">precheck@2 · 프로젝트 공통 템플릿 (통합 · 개발 · 리팩토링 · 버그수정 Loop 공용) · 점검 로그 <span data-slot="footer-log">docs/logs/prepare/inspection_20261022_110842.log</span></p>
+</div>
+</body>
+</html>

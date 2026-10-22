@@ -37,17 +37,16 @@ async function chipCount(page: Page, label: string): Promise<number> {
   return Number(text.trim());
 }
 
-/** 주문 상세 HTML 의 숨은 version 값. 변경 버튼이 없는 최종 상태 주문에는 없다. */
+/** 주문 상세 API 가 알려 주는 version 값(화면이 상태 변경 때 보내는 값). */
 async function readVersion(page: Page, orderId: number): Promise<number> {
-  const html = await (await page.request.get(`/orders/${orderId}`)).text();
-  const m = html.match(/name="version"\s+value="(\d+)"/);
-  expect(m, '상세 화면에서 version 값을 찾지 못했다').not.toBeNull();
-  return Number(m![1]);
+  const res = await page.request.get(`/api/orders/${orderId}`);
+  expect(res.status(), '주문 상세 API 가 version 값을 주지 않았다').toBe(200);
+  return Number((await res.json()).version);
 }
 
-/** 화면에 버튼이 없는 상태 변경 요청을 직접 보낸다. 리다이렉트된 상세 화면의 HTML 을 돌려준다. */
+/** 화면에 버튼이 없는 상태 변경 요청을 직접 보낸다. 서버가 돌려준 응답 본문(안내·오류 문구가 담긴 JSON)을 돌려준다. */
 async function postStatus(page: Page, orderId: number, status: string, version: number): Promise<string> {
-  const res = await page.request.post(`/orders/${orderId}/status`, { form: { status, version: String(version) } });
+  const res = await page.request.post(`/api/orders/${orderId}/status`, { data: { status, version } });
   return res.text();
 }
 
@@ -286,7 +285,7 @@ test.describe('E2E-036~040 마스터 데이터', () => {
   test.afterEach(async ({ page }) => {
     // 어떤 테스트가 값을 바꿨든 시작 시점 값으로 되돌린다
     const res = await saveMaster(page, originalForm);
-    expect(res.status()).toBe(302);
+    expect(res.status()).toBe(200);
   });
 
   /** E2E-036 마스터 화면에 현재 값이 보인다 */

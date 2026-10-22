@@ -62,7 +62,7 @@ public class ApiController {
 		}
 	}
 
-	private static ResponseEntity<Map<String, Object>> apiError(BusinessException e) {
+	static ResponseEntity<Map<String, Object>> apiError(BusinessException e) {
 		HttpStatus status = e.isConflict() ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
 		return ResponseEntity.status(status).body(Map.of("error", e.getMessage(), "conflict", e.isConflict()));
 	}

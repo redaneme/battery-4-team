@@ -18,8 +18,8 @@ export const num = (text: string): number => parseFloat(text.replace(/[^0-9.\-]/
 
 /** 화면을 거치지 않고 로그인한다. 세션 쿠키는 이 page 의 컨텍스트에 저장된다. */
 export async function login(page: Page): Promise<void> {
-  const res = await page.request.post('/login', { form: { username: 'admin', password: 'admin' }, maxRedirects: 0 });
-  expect(res.status()).toBe(302);
+  const res = await page.request.post('/api/login', { data: { username: 'admin', password: 'admin' } });
+  expect(res.status()).toBe(200);
 }
 
 /** 화면으로 로그인한다. */
@@ -84,17 +84,19 @@ export async function changeStatusUi(page: Page, id: number, to: keyof typeof ST
 export const meta = (page: Page, label: string): Locator =>
   page.locator('.meta > div').filter({ has: page.locator('dt', { hasText: label }) }).locator('dd');
 
-/** 상태 이력 표: [일시, 이전 상태, 새 상태, 변경한 사람] 배열 */
+/** 상태 이력 표: [일시, 이전 상태, 새 상태, 변경한 사람] 배열. 화면이 이력을 그릴 때까지 기다린 뒤 읽는다. */
 export async function historyRows(page: Page): Promise<string[][]> {
-  return page
+  const rows = page
     .locator('section.card')
     .filter({ has: page.getByRole('heading', { name: '상태 이력' }) })
-    .locator('tbody tr')
-    .evaluateAll((trs) => trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => (td.textContent ?? '').trim())));
+    .locator('tbody tr');
+  await rows.first().waitFor();
+  return rows.evaluateAll((trs) => trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => (td.textContent ?? '').trim())));
 }
 
 /** 요약 카드(총 수량, 소요 일수, 생산 원가, 운항비, 총 비용) */
 export async function readStats(page: Page): Promise<Record<string, string>> {
+  await page.locator('#summary .stats > div').first().waitFor();
   return page.locator('#summary .stats > div').evaluateAll((divs) => {
     const out: Record<string, string> = {};
     divs.forEach((d) => {
@@ -106,11 +108,9 @@ export async function readStats(page: Page): Promise<Record<string, string>> {
 
 /** #details 안의 n 번째 표(0: 나라별 주문 수량, 1: 배 경로, 2: 일별, 3: 공장 값, 4: 항로)의 행별 셀 텍스트 */
 export async function readDetailsTable(page: Page, index: number): Promise<string[][]> {
-  return page
-    .locator('#details table.grid')
-    .nth(index)
-    .locator('tbody tr')
-    .evaluateAll((trs) => trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => (td.textContent ?? '').trim())));
+  const rows = page.locator('#details table.grid').nth(index).locator('tbody tr');
+  await rows.first().waitFor();
+  return rows.evaluateAll((trs) => trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => (td.textContent ?? '').trim())));
 }
 
 /** 배 경로 표의 경로 칸에서 나라별 적재량(K)을 모두 더한다. 예: "한국 → 중국(1일 도착 · 3,000K 적재) → 한국" */
@@ -164,6 +164,7 @@ export async function pickOption(page: Page, type: RouteType): Promise<void> {
 /** 마스터 화면의 모든 입력값을 {이름: 값}으로 읽는다. 복원에 쓴다. */
 export async function readMasterForm(page: Page): Promise<Record<string, string>> {
   await page.goto('/master');
+  await page.locator('form[action="/master"] input[name]').first().waitFor(); // 화면이 입력칸을 그릴 때까지
   return page.evaluate(() => {
     const out: Record<string, string> = {};
     document.querySelectorAll<HTMLInputElement>('form[action="/master"] input[name]').forEach((i) => {
@@ -173,7 +174,7 @@ export async function readMasterForm(page: Page): Promise<Record<string, string>
   });
 }
 
-/** 마스터 값을 폼 전송으로 저장한다(화면 검증을 거치지 않는다). 성공하면 302. */
+/** 마스터 값을 API 로 저장한다(화면 검증을 거치지 않는다). 성공하면 200. */
 export async function saveMaster(page: Page, values: Record<string, string>) {
-  return page.request.post('/master', { form: values, maxRedirects: 0 });
+  return page.request.post('/api/master', { data: values });
 }

@@ -3,6 +3,7 @@ package com.example.demo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -10,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.demo.entity.OrderStatus;
 import com.example.demo.service.BusinessException;
 import com.example.demo.service.OrderService;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +24,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -36,8 +41,9 @@ class OrderFlowTests {
 
 	private MockHttpSession login() throws Exception {
 		MockHttpSession session = new MockHttpSession();
-		mvc.perform(post("/login").param("username", "admin").param("password", "admin").session(session))
-				.andExpect(redirectedUrl("/orders"));
+		mvc.perform(post("/api/login").session(session).contentType(MediaType.APPLICATION_JSON)
+						.content("{\"username\":\"admin\",\"password\":\"admin\"}"))
+				.andExpect(status().isOk());
 		return session;
 	}
 
@@ -49,19 +55,39 @@ class OrderFlowTests {
 		mvc.perform(get("/login")).andExpect(status().isOk());
 	}
 
+	/** 화면은 정적 HTML 이라 파일 주소로 직접 불러도, 화면 데이터 API 도 로그인 없이는 열리지 않는다. */
+	@Test
+	void anonymousUserCannotReadStaticPagesOrScreenApis() throws Exception {
+		mvc.perform(get("/orders.html")).andExpect(redirectedUrl("/login"));
+		mvc.perform(get("/master.html")).andExpect(redirectedUrl("/login"));
+		mvc.perform(get("/api/orders")).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/master/form")).andExpect(status().isUnauthorized());
+		mvc.perform(post("/api/master").contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isUnauthorized());
+		mvc.perform(get("/login.html")).andExpect(status().isOk());
+	}
+
 	@Test
 	void wrongPasswordIsRejected() throws Exception {
-		mvc.perform(post("/login").param("username", "admin").param("password", "x"))
-				.andExpect(status().isOk());
-		mvc.perform(post("/login").param("username", "other").param("password", "admin"))
-				.andExpect(status().isOk());
+		mvc.perform(post("/api/login").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"username\":\"admin\",\"password\":\"x\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("아이디 또는 비밀번호가 올바르지 않습니다"));
+		mvc.perform(post("/api/login").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"username\":\"other\",\"password\":\"admin\"}"))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test
 	void pagesRender() throws Exception {
 		MockHttpSession s = login();
-		for (String url : new String[] {"/orders", "/orders/new", "/master"}) {
-			mvc.perform(get(url).session(s)).andExpect(status().isOk());
+		String[][] pages = {{"/orders", "/orders.html"}, {"/orders/new", "/order-new.html"},
+				{"/master", "/master.html"}};
+		for (String[] page : pages) {
+			mvc.perform(get(page[0]).session(s)).andExpect(status().isOk()).andExpect(forwardedUrl(page[1]));
+		}
+		for (String api : new String[] {"/api/me", "/api/orders", "/api/master/form"}) {
+			mvc.perform(get(api).session(s)).andExpect(status().isOk());
 		}
 	}
 
@@ -102,7 +128,11 @@ class OrderFlowTests {
 		MockHttpSession s = login();
 		long id = confirm(s);
 
-		mvc.perform(get("/orders/" + id).session(s)).andExpect(status().isOk());
+		mvc.perform(get("/orders/" + id).session(s)).andExpect(status().isOk())
+				.andExpect(forwardedUrl("/order-detail.html"));
+		mvc.perform(get("/api/orders/" + id).session(s)).andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("CONFIRMED"))
+				.andExpect(jsonPath("$.history.length()").value(1));
 		var order = orderService.getOrder(id);
 		assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
 		assertThat(order.getPlanJson()).contains("\"master\"").contains("\"plan\"");
@@ -144,18 +174,23 @@ class OrderFlowTests {
 		long id = confirm(s);
 		String before = orderService.getOrder(id).getPlanJson();
 
-		var form = post("/master").session(s)
-				.param("shipCount", "3").param("shipDailyCost", "1.5");
+		Map<String, String> form = new LinkedHashMap<>();
+		form.put("shipCount", "3");
+		form.put("shipDailyCost", "1.5");
 		for (String c : new String[] {"CHINA", "JAPAN", "VIETNAM", "INDONESIA"}) {
-			form.param("maxDaily_" + c, "500").param("stockLimit_" + c, "5000").param("unitCost_" + c, "600");
+			form.put("maxDaily_" + c, "500");
+			form.put("stockLimit_" + c, "5000");
+			form.put("unitCost_" + c, "600");
 		}
 		String[] all = {"KOREA", "CHINA", "JAPAN", "VIETNAM", "INDONESIA"};
 		for (int i = 0; i < all.length; i++) {
 			for (int j = i + 1; j < all.length; j++) {
-				form.param("days_" + all[i] + "_" + all[j], "3");
+				form.put("days_" + all[i] + "_" + all[j], "3");
 			}
 		}
-		mvc.perform(form).andExpect(redirectedUrl("/master"));
+		mvc.perform(post("/api/master").session(s).contentType(MediaType.APPLICATION_JSON)
+						.content(new ObjectMapper().writeValueAsString(form)))
+				.andExpect(status().isOk());
 
 		assertThat(orderService.getOrder(id).getPlanJson()).isEqualTo(before);
 		mvc.perform(get("/api/master").session(s))
@@ -165,8 +200,9 @@ class OrderFlowTests {
 	@Test
 	void invalidMasterIsNotSaved() throws Exception {
 		MockHttpSession s = login();
-		mvc.perform(post("/master").session(s).param("shipCount", "9").param("shipDailyCost", "abc"))
-				.andExpect(status().isOk());
+		mvc.perform(post("/api/master").session(s).contentType(MediaType.APPLICATION_JSON)
+						.content("{\"shipCount\":\"9\",\"shipDailyCost\":\"abc\"}"))
+				.andExpect(status().isBadRequest());
 		mvc.perform(get("/api/master").session(s)).andExpect(jsonPath("$.shipCount").value(3));
 	}
 }

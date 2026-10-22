@@ -45,10 +45,10 @@ export async function changeStatus(
   id: number,
   status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED',
 ) {
-  const detail = await (await request.get(`/orders/${id}`)).text();
-  const version = detail.match(/name="version" value="(\d+)"/)?.[1];
-  expect(version, `주문 #${id} 의 version 을 찾지 못했다`).toBeTruthy();
-  const res = await request.post(`/orders/${id}/status`, { form: { status, version: version! } });
+  const detail = await request.get(`/api/orders/${id}`);
+  expect(detail.status(), `주문 #${id} 을 읽지 못했다`).toBe(200);
+  const { version } = (await detail.json()) as { version: number };
+  const res = await request.post(`/api/orders/${id}/status`, { data: { status, version } });
   expect(res.status()).toBe(200);
 }
 
@@ -62,6 +62,7 @@ export function historyRows(page: Page) {
 /** 이력 행을 [일시 제외] 이전 상태·새 상태·변경한 사람 으로 읽는다. */
 export async function readHistory(page: Page) {
   const rows = historyRows(page);
+  await rows.first().waitFor(); // 화면이 이력을 그릴 때까지
   const n = await rows.count();
   const out: { from: string; to: string; by: string }[] = [];
   for (let i = 0; i < n; i++) {

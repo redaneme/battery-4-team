@@ -60,6 +60,7 @@ test.describe('4. 주문 확정', () => {
     // 4: 목록의 같은 행(경로·소요 일수·총 비용)과 같다
     await page.goto('/orders');
     const row = page.locator('table.grid tbody tr', { has: page.getByRole('link', { name: `#${id}` }) });
+    await expect(row).toBeVisible(); // 화면이 목록을 그릴 때까지
     const cells = await row.locator('td').allInnerTexts();
     expect(cells[3].trim()).toBe('가장 빠르게');
     expect(num(cells[4])).toBe(num(stats['소요 일수']));

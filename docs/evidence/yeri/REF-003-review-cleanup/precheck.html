@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="template" content="precheck@2">
+<title>구현 전 점검 · 리뷰 의견 반영 정리</title>
+<style>
+:root{
+  --bg:#f4f6fb; --card:#ffffff; --fg:#1b2333; --muted:#5d6a82; --line:#d5dcea; --soft:#eef2fa;
+  --accent:#2f6fed; --accent-bg:#e8f0ff;
+  --ok:#14946b; --ok-bg:#e3f6ee; --warn:#d9731a; --warn-bg:#ffefdd; --bad:#d23c4b; --bad-bg:#fde8ea;
+  --prep:#2f6fed; --prep-bg:#e8f0ff; --impl:#14946b; --impl-bg:#e3f6ee; --ver:#7a49d6; --ver-bg:#f0e9fd;
+  --hero-a:#2f6fed; --hero-b:#7a49d6; --on-hero:#ffffff;
+  --ok-ink:#0b6b4d; --warn-ink:#9a4a07; --bad-ink:#a8202f; /* 밝은 바탕 위 글자용(대비 4.5:1 이상) */
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 8px 22px rgba(20,30,60,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f131c; --card:#171c28; --fg:#e8ecf5; --muted:#9aa6bd; --line:#2d3649; --soft:#1d2433;
+    --accent:#7aa5ff; --accent-bg:#1b2742;
+    --ok:#4cd3a2; --ok-bg:#14302a; --warn:#ffa45c; --warn-bg:#3b2615; --bad:#ff8590; --bad-bg:#3d1c22;
+    --prep:#7aa5ff; --prep-bg:#1b2742; --impl:#4cd3a2; --impl-bg:#14302a; --ver:#b69af0; --ver-bg:#291f45;
+    --hero-a:#27408f; --hero-b:#4b2f8a; --shadow:none;
+    --ok-ink:#4cd3a2; --warn-ink:#ffa45c; --bad-ink:#ff8590;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.65 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:1px 6px;word-break:break-all}
+a{color:var(--accent)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px 56px}
+.tpl-banner{background:var(--warn-bg);color:var(--warn);border-bottom:2px dashed var(--warn);padding:10px 16px;text-align:center;font-size:13.5px;font-weight:700}
+/* 히어로 */
+.hero{margin:20px 0 8px;border-radius:20px;padding:26px 26px 22px;color:var(--on-hero);background:linear-gradient(135deg,var(--hero-a),var(--hero-b));box-shadow:var(--shadow)}
+.loops{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.lt{font-size:12.5px;font-weight:700;padding:2px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.45);color:rgba(255,255,255,.75)}
+body[data-loop="integrate"] .lt-integrate,body[data-loop="develop"] .lt-develop,
+body[data-loop="refactor"] .lt-refactor,body[data-loop="bugfix"] .lt-bugfix{background:#fff;color:#1b2333;border-color:#fff}
+.hero h1{margin:0 0 4px;font-size:28px;letter-spacing:-.4px}
+.hero .target{margin:0 0 12px;font-size:16.5px;opacity:.96}
+.hero .meta{margin:0;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;opacity:.9}
+.status-badge{display:inline-block;margin-bottom:12px;font-size:15px;font-weight:800;letter-spacing:.5px;padding:3px 16px;border-radius:999px;background:var(--card);color:var(--ok-ink)}
+body[data-status="HITL"] .status-badge{color:var(--warn-ink)}
+body[data-status="FAIL"] .status-badge{color:var(--bad-ink)}
+/* 섹션 */
+.sec{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px 20px}
+.sec h2{margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:10px}
+.sec h2 .no{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:13px;font-weight:800}
+.sec h3{margin:16px 0 6px;font-size:14.5px;color:var(--muted)}
+.sec p{margin:6px 0}
+.hint{color:var(--muted);font-size:13px}
+ul.list{margin:6px 0;padding-left:20px}
+ul.list li{margin:2px 0}
+/* 표 */
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft);font-size:13px;color:var(--muted);white-space:nowrap}
+td.num,th.num{text-align:right;white-space:nowrap}
+/* 칩: 글자와 함께 data-state(ok|warn|bad|none)를 바꿔 주세요. 색만으로 뜻을 전하지 않도록 글자는 항상 같이 써 주세요. */
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 10px;border-radius:999px;border:1px solid currentColor;white-space:nowrap;color:var(--muted);background:var(--soft)}
+.chip[data-state="ok"]{color:var(--ok-ink);background:var(--ok-bg)}
+.chip[data-state="warn"]{color:var(--warn-ink);background:var(--warn-bg)}
+.chip[data-state="bad"]{color:var(--bad-ink);background:var(--bad-bg)}
+.chip[data-state="none"]{color:var(--muted);background:var(--soft)}
+/* 요구사항·원칙 칩 격자 */
+.reqs{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.rq{display:flex;gap:8px;align-items:baseline;border:1px solid var(--line);border-radius:10px;padding:6px 10px;color:var(--muted);background:var(--soft);font-size:13.5px}
+.rq b{color:var(--muted);min-width:34px}
+.rq[data-rel="yes"]{color:var(--fg);background:var(--accent-bg);border-color:var(--accent)}
+.rq[data-rel="yes"] b{color:var(--accent)}
+.rq[data-rel="yes"]::after{content:"✔ 관련";margin-left:auto;white-space:nowrap;font-size:12px;font-weight:800;color:var(--fg)}
+/* 이해 점검 / 체크리스트 / 3단계 */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.two{grid-template-columns:1fr}.hero{padding:20px 16px}.hero h1{font-size:23px}.sec{padding:14px}}
+.mini{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--card)}
+.mini h3{margin:0 0 4px;font-size:15px;color:var(--fg)}
+.mini .k{font-size:12px;color:var(--muted);margin-top:6px}
+.check{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 0;background:var(--card)}
+.check .n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent-bg);color:var(--accent);font-weight:800;font-size:13px}
+.check .body{flex:1;min-width:0}
+.check .body b{display:block}
+.check .how{color:var(--muted);font-size:13.5px}
+/* 규모 미터 */
+.meter{display:flex;gap:6px;max-width:420px}
+.meter .seg{flex:1;text-align:center;font-size:12.5px;font-weight:700;padding:5px 0;border-radius:8px;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.meter[data-scale="small"] .s{background:var(--ok-bg);color:var(--ok-ink);border-color:var(--ok-ink)}
+.meter[data-scale="medium"] .m{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--warn-ink)}
+.meter[data-scale="large"] .l{background:var(--bad-bg);color:var(--bad-ink);border-color:var(--bad-ink)}
+.meter[data-scale="small"] .s::before,.meter[data-scale="medium"] .m::before,.meter[data-scale="large"] .l::before{content:"✔ "}
+/* Loop 종류별 섹션 */
+.for{display:none}
+body[data-loop="integrate"] .for-integrate,body[data-loop="develop"] .for-develop,
+body[data-loop="refactor"] .for-refactor,body[data-loop="bugfix"] .for-bugfix{display:block}
+.only-hitl{display:none}
+body[data-status="HITL"] .only-hitl{display:block}
+body[data-status="HITL"] .only-go{display:none}
+.footer{margin:26px 0 0;text-align:center;color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body data-loop="refactor" data-status="GO">
+<div class="wrap">
+
+<header class="hero">
+  <ul class="loops" aria-label="Loop 종류">
+    <li class="lt lt-refactor">리팩토링</li>
+  </ul>
+  <div class="status-badge"><span data-slot="status">GO</span></div>
+  <h1>구현 전 점검</h1>
+  <p class="target"><span data-slot="task">리뷰 의견 반영 정리: 세션 사용자 값이 없으면 원래처럼 비어 있는 값으로 받게 하고, 변환 메서드를 정적 메서드로 바꿔 가벼운 단위 테스트로 검증하고, 이전 작업 증적의 커밋 기준 표기를 고친다. 동작은 바꾸지 않는다.</span></p>
+  <p class="meta"><span>날짜 <span data-slot="date">2026-10-22 10:43:15</span></span><span>회차 <span data-slot="round">1</span></span><span>작성 prepare 에이전트</span><span>브랜치 <span data-slot="branch">feature/refactoring</span> · 커밋 <span data-slot="commit">adebfca</span></span><span>요청자 <span data-slot="requester">yeri</span></span><span>로그 <span data-slot="log-path">docs/logs/prepare/inspection_20261022_104315.log</span></span></p>
+</header>
+
+<section class="sec" id="verdict">
+  <h2><span class="no">1</span>판단</h2>
+  <p><b><span data-slot="summary">동작을 바꾸지 않는 구조 정리 3건이며 변경이 작고 안전망이 있어 GO.</span></b></p>
+  <h3>이유</h3>
+  <ul class="list"><li data-repeat="reason"><span data-slot="reason">버그가 아니라 구조 정리 요청이다. 세 건 모두 화면·API·계산 결과를 바꾸지 않는다(요청 문구 "동작 변경 없음").</span></li>
+<li data-repeat="reason"><span data-slot="reason">(1) 3ab240a 이전 코드는 HttpSession.getAttribute 로 null 을 받았다. 현재 @SessionAttribute 는 기본 required=true 라 값이 없으면 오류가 난다. required=false 로 원래 의미를 복원한다. 현재 두 핸들러는 LoginInterceptor 뒤에 있어 정상 흐름에서는 값이 항상 있다.</span></li>
+<li data-repeat="reason"><span data-slot="reason">(2) MasterService.toForm 은 필드를 쓰지 않는 순수 변환이고 routeKey, WON_PER_EOK 가 이미 static 이라 static 으로 바꿔도 컴파일된다. 호출은 MasterController.java 26행 한 곳, 테스트는 MasterFormTests 한 곳이다.</span></li>
+<li data-repeat="reason"><span data-slot="reason">(3) REF-002 report.html 110행 커밋 칸이 "3ab240a (작업 트리 변경, 미커밋)" 이고 precheck.html 112행은 "3ab240a" 만 적혀 있다. 해당 작업은 adebfca 로 커밋되었다(git show adebfca --stat 에 두 파일 포함). 요청은 두 파일을 고치라고 했으므로 precheck 의 커밋 칸도 같은 표기로 맞춘다.</span></li>
+<li data-repeat="reason"><span data-slot="reason">기준선은 REF-002 의 기록(JUnit 23건, E2E 45건 통과)을 인용했다. 이번 점검에서 재실행은 하지 않았다. 구현 후 verify 가 전체를 돌린다.</span></li></ul>
+  <div class="only-hitl">
+    <h3>⚠ 경고</h3>
+    <ul class="list"><li data-repeat="warning"><span data-slot="warning">없음</span></li></ul>
+    <h3>사용자에게 확인할 질문</h3>
+    <ul class="list"><li data-repeat="question"><span data-slot="question">없음</span></li></ul>
+  </div>
+</section>
+
+<section class="sec" id="understand">
+  <h2><span class="no">2</span>이해 점검 <span class="hint">— 모르는 부분은 추측하지 않고 사람에게 확인을 요청해 주세요(HITL)</span></h2>
+  <div class="two">
+    <div class="mini">
+      <h3>배경 · 사용자가 어떤 상황인가 <span class="chip" data-state="ok" data-slot="background-state">이해함</span></h3>
+      <p><span data-slot="background">직전 리팩토링(adebfca)에서 세션 사용자 조회를 @SessionAttribute 로 바꾸면서 값이 없을 때 오류가 나는 형태(기본 required=true)가 되었다. MasterService.toForm 은 상태가 없는데 인스턴스 메서드이고 그 테스트는 전체 스프링 컨텍스트를 띄운다. REF-002 증적에는 이미 커밋된 작업이 아직 미커밋으로 적혀 있다.</span></p>
+      <div class="k">근거</div><p class="hint"><span data-slot="background-evidence">요청 문구 (1)(2)(3). OrderController.java 55행, ApiController.java 55행, MasterService.java 78행(toForm), MasterFormTests.java(@SpringBootTest), REF-002 report.html 110행 커밋 칸. 3ab240a 이전 OrderController 는 HttpSession.getAttribute 로 null 을 받았다(git show 3ab240a).</span></p>
+    </div>
+    <div class="mini">
+      <h3>목적 · 왜 필요한가 <span class="chip" data-state="ok" data-slot="purpose-state">이해함</span></h3>
+      <p><span data-slot="purpose">동작은 그대로 두고, 세션 값 처리를 원래 의미(없으면 null)로 되돌리고, 상태 없는 변환을 정적 메서드로 드러내 테스트가 컨텍스트 없이 빠르게 돌게 하며, 증적 문서의 커밋 기준을 사실과 맞춘다.</span></p>
+      <div class="k">근거</div><p class="hint"><span data-slot="purpose-evidence">요청 문구 (INTENT 원칙 14, 동작 변경 없음 유지), INTENT.md 14번 원칙(사용자 식별을 문자열 하나로 다루는 모양 유지), LoginInterceptor 가 미로그인 요청을 먼저 막아 이 두 핸들러에는 세션 값이 항상 있다.</span></p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="scale">
+  <h2><span class="no">3</span>규모와 위험</h2>
+  <p>변경 규모 <span class="hint">(여러 계층, 많은 파일, DB 변경, 핵심 규칙 변경, 되돌리기 어려움 → 큼)</span></p>
+  <div class="meter" data-scale="small"><span class="seg s">작음</span><span class="seg m">중간</span><span class="seg l">큼</span></div>
+  <p>사용자가 이 규모·위험을 알고 있는가: <b><span data-slot="user-aware">해당 없음</span></b> <span class="hint">— <span data-slot="user-aware-why">변경은 소스 3개 + 테스트 1개 + 증적 2개로 작고 핵심 불변식을 건드리지 않는다.</span></span></p>
+  <div class="tbl"><table>
+    <thead><tr><th>위험</th><th>심각도</th><th>대응</th></tr></thead>
+    <tbody>
+      <tr data-repeat="risk"><td><span data-slot="risk">required=false 로 바뀌면서 세션 값이 없을 때 오류 대신 null 이 서비스까지 전달된다</span></td><td><span class="chip" data-state="ok" data-slot="risk-level">낮음</span></td><td><span data-slot="risk-fix">원래 동작이며 인터셉터가 먼저 막는다. 미로그인 E2E(001~005)가 그대로 통과하는지 확인한다.</span></td></tr>
+<tr data-repeat="risk"><td><span data-slot="risk">static 변경으로 다른 호출이 깨질 수 있다</span></td><td><span class="chip" data-state="ok" data-slot="risk-level">낮음</span></td><td><span data-slot="risk-fix">grep 결과 호출은 컨트롤러 1곳과 테스트 1곳뿐이다. 컴파일로 확인한다.</span></td></tr>
+<tr data-repeat="risk"><td><span data-slot="risk">MasterFormTests 를 단위 테스트로 바꾸다 검증값이 약해질 수 있다</span></td><td><span class="chip" data-state="ok" data-slot="risk-level">낮음</span></td><td><span data-slot="risk-fix">기대값 6개를 그대로 두고 diff 에서 어서션이 변하지 않았음을 확인한다.</span></td></tr>
+<tr data-repeat="risk"><td><span data-slot="risk">증적 문서 수정 중 다른 내용이 바뀐다</span></td><td><span class="chip" data-state="ok" data-slot="risk-level">낮음</span></td><td><span data-slot="risk-fix">커밋 표기 칸만 고치고 git diff 로 변경 줄 수를 확인한다.</span></td></tr>
+    </tbody></table></div>
+  <h3>가정 <span class="hint">(확인하지 못한 것)</span></h3>
+  <ul class="list"><li data-repeat="assumption"><span data-slot="assumption">E2E 45건 통과 기준선은 REF-002 기록을 인용했고 이번에 재실행하지 않았다.</span></li>
+<li data-repeat="assumption"><span data-slot="assumption">E2E "모두 PASS" 는 test.fail() 3건이 계속 실패하는 것(Playwright 에서는 통과로 집계)을 뜻한다고 해석했다.</span></li></ul>
+</section>
+
+<section class="sec" id="requirements">
+  <h2><span class="no">4</span>요구사항 · 원칙과의 관계</h2>
+  <p class="hint">기준 문서: PRD.md <span data-slot="prd-version">c4aded2</span> · INTENT.md <span data-slot="intent-version">c4aded2</span> (아래 R1~R11, 원칙 1~14는 이 버전 기준입니다. 문서가 바뀌면 목록도 고쳐 주세요)</p>
+  <h3>PRD 요구사항 <span class="hint">(관련 있는 항목은 <code>data-rel="yes"</code>)</span></h3>
+  <ul class="reqs">
+    <li class="rq" data-rel="no" data-req="R1"><b>R1</b>주문 수량 입력</li>
+    <li class="rq" data-rel="no" data-req="R2"><b>R2</b>경로안 계산·비교</li>
+    <li class="rq" data-rel="no" data-req="R3"><b>R3</b>경로안 선택·메모·확정</li>
+    <li class="rq" data-rel="no" data-req="R4"><b>R4</b>확정 주문 불변(스냅샷)</li>
+    <li class="rq" data-rel="no" data-req="R5"><b>R5</b>낡은 기준으로 확정 거부</li>
+    <li class="rq" data-rel="no" data-req="R6"><b>R6</b>주문 목록·상세 조회</li>
+    <li class="rq" data-rel="no" data-req="R7"><b>R7</b>상태 변경·이력</li>
+    <li class="rq" data-rel="no" data-req="R8"><b>R8</b>기준 정보 관리</li>
+    <li class="rq" data-rel="no" data-req="R9"><b>R9</b>입력 검증·이유 안내</li>
+    <li class="rq" data-rel="no" data-req="R10"><b>R10</b>동시 변경 보호</li>
+    <li class="rq" data-rel="yes" data-req="R11"><b>R11</b>로그인한 사용자만</li>
+  </ul>
+  <h3>INTENT 원칙 <span class="hint">(깨질 수 있는 원칙은 <code>data-rel="yes"</code>)</span></h3>
+  <ul class="reqs">
+    <li class="rq" data-rel="no" data-principle="1"><b>#1</b>비교가 먼저다</li>
+    <li class="rq" data-rel="no" data-principle="2"><b>#2</b>서버가 다시 계산한다</li>
+    <li class="rq" data-rel="no" data-principle="3"><b>#3</b>기준이 바뀌면 확정 거부</li>
+    <li class="rq" data-rel="no" data-principle="4"><b>#4</b>확정 주문은 스냅샷</li>
+    <li class="rq" data-rel="no" data-principle="5"><b>#5</b>동시 변경을 덮어쓰지 않는다</li>
+    <li class="rq" data-rel="no" data-principle="6"><b>#6</b>틀린 계산을 숨기지 않는다</li>
+    <li class="rq" data-rel="no" data-principle="7"><b>#7</b>입력은 전부 검증</li>
+    <li class="rq" data-rel="no" data-principle="8"><b>#8</b>오류는 이유와 함께</li>
+    <li class="rq" data-rel="no" data-principle="9"><b>#9</b>변경에는 흔적을 남긴다</li>
+    <li class="rq" data-rel="yes" data-principle="10"><b>#10</b>규칙은 테스트로 고정</li>
+    <li class="rq" data-rel="no" data-principle="11"><b>#11</b>Planner 는 DB·화면을 모른다</li>
+    <li class="rq" data-rel="no" data-principle="12"><b>#12</b>금액은 원 단위 정수</li>
+    <li class="rq" data-rel="no" data-principle="13"><b>#13</b>기준 정보는 데이터</li>
+    <li class="rq" data-rel="yes" data-principle="14"><b>#14</b>로그인한 사용자만</li>
+  </ul>
+  <div class="tbl"><table>
+    <thead><tr><th>번호</th><th>이번 작업과의 관계</th></tr></thead>
+    <tbody><tr data-repeat="relation"><td><span data-slot="relation-id">원칙 14 / R11</span></td><td><span data-slot="relation">로그인한 사용자만 쓴다. 사용자 식별을 문자열로 다루는 모양을 유지한다. required=false 로 값이 없을 때의 처리가 이전과 같아진다.</span></td></tr>
+<tr data-repeat="relation"><td><span data-slot="relation-id">원칙 10</span></td><td><span data-slot="relation">규칙은 테스트로 고정한다. MasterFormTests 는 검증값을 유지한 채 가벼워진다.</span></td></tr></tbody></table></div>
+  <h3>범위 밖 확정 (PRD 10장) 저촉 여부</h3>
+  <p><span data-slot="out-of-scope">저촉하지 않음 (PRD 10장 범위 밖 기능을 추가하지 않는다)</span></p>
+  <h3>충돌·불일치</h3>
+  <ul class="list"><li data-repeat="conflict"><span data-slot="conflict">요청은 "3ab240a (작업 트리 변경, 미커밋)" 문구가 precheck.html 과 report.html 에 모두 있다고 했으나 실제로 그 문구는 report.html 에만 있고 precheck.html 은 "3ab240a" 만 있다. 두 파일 모두 같은 최종 표기로 고친다.</span></li></ul>
+</section>
+
+<section class="sec" id="impact">
+  <h2><span class="no">5</span>영향 범위 <span class="hint">— 이 프로젝트의 계층별</span></h2>
+  <div class="tbl"><table>
+    <thead><tr><th style="width:27%">계층</th><th style="width:12%">변경</th><th style="width:33%">바꿀 파일·메서드</th><th style="width:28%">이유</th></tr></thead>
+    <tbody>
+      <tr data-layer="화면 템플릿"><td><b>화면 템플릿</b><div class="hint"><code>src/main/resources/templates/*.html</code></div></td>
+        <td><span class="chip" data-state="none" data-slot="layer-1-state">없음</span></td>
+        <td><span data-slot="layer-1-files">없음</span><div class="hint">login · orders · order-new · order-detail · master · fragments</div></td>
+        <td><span data-slot="layer-1-why">화면 템플릿은 바꾸지 않는다.</span></td></tr>
+      <tr data-layer="화면 스크립트"><td><b>화면 스크립트</b><div class="hint"><code>src/main/resources/static/js/*.js</code></div></td>
+        <td><span class="chip" data-state="none" data-slot="layer-2-state">없음</span></td>
+        <td><span data-slot="layer-2-files">없음</span><div class="hint">order-new.js · planview.js · anim.js · common.js</div></td>
+        <td><span data-slot="layer-2-why">스크립트는 바꾸지 않는다.</span></td></tr>
+      <tr data-layer="컨트롤러"><td><b>컨트롤러</b><div class="hint"><code>controller/AppController.java</code></div></td>
+        <td><span class="chip" data-state="warn" data-slot="layer-3-state">변경</span></td>
+        <td><span data-slot="layer-3-files">OrderController.changeStatus, ApiController.confirm 의 @SessionAttribute 에 required = false 추가. MasterController.master 의 호출을 MasterService.toForm(...) 으로 맞춤.</span><div class="hint">화면 요청·JSON API·로그인 처리</div></td>
+        <td><span data-slot="layer-3-why">세션 값이 없으면 null 을 받던 원래 동작 유지(1). 정적 호출로 맞춤(2). 현재 컨트롤러는 controller/ 아래 역할별 파일이다.</span></td></tr>
+      <tr data-layer="서비스"><td><b>서비스</b><div class="hint"><code>service/BatteryService.java</code></div></td>
+        <td><span class="chip" data-state="warn" data-slot="layer-4-state">변경</span></td>
+        <td><span data-slot="layer-4-files">MasterService.toForm 에 static 추가 (내부에서 쓰는 routeKey 와 WON_PER_EOK 는 이미 static)</span><div class="hint">확정·상태 변경·기준 정보 검증·버전 검사 (BusinessException)</div></td>
+        <td><span data-slot="layer-4-why">인스턴스 상태를 쓰지 않는 변환(2).</span></td></tr>
+      <tr data-layer="경로 계산"><td><b>경로 계산</b><div class="hint"><code>simulation/Planner.java · Master · Plan · StoredPlan</code></div></td>
+        <td><span class="chip" data-state="none" data-slot="layer-5-state">없음</span></td>
+        <td><span data-slot="layer-5-files">없음</span><div class="hint">DB·화면을 모르는 순수 계산 (원칙 11)</div></td>
+        <td><span data-slot="layer-5-why">계산 코드는 바꾸지 않는다.</span></td></tr>
+      <tr data-layer="엔티티·DB"><td><b>엔티티·DB</b><div class="hint"><code>entity/* · repository/* · H2 ./data/battery</code></div></td>
+        <td><span class="chip" data-state="none" data-slot="layer-6-state">없음</span></td>
+        <td><span data-slot="layer-6-files">없음</span><div class="hint">Order · OrderStatusHistory · Factory · Route · Setting</div></td>
+        <td><span data-slot="layer-6-why">엔티티·DB 변경 없음.</span></td></tr>
+      <tr data-layer="설정·로그인"><td><b>설정·로그인</b><div class="hint"><code>config/*</code></div></td>
+        <td><span class="chip" data-state="ok" data-slot="layer-7-state">확인만</span></td>
+        <td><span data-slot="layer-7-files">LoginInterceptor (바꾸지 않음)</span><div class="hint">LoginInterceptor · WebConfig · DataInitializer</div></td>
+        <td><span data-slot="layer-7-why">미로그인은 인터셉터가 먼저 막으므로 required=false 여도 로그인 흐름은 같다.</span></td></tr>
+      <tr data-repeat="layer-extra"><td><span data-slot="layer-extra">테스트</span></td><td><span class="chip" data-state="warn">변경</span></td><td><span data-slot="layer-extra-files">src/test/java/com/example/demo/MasterFormTests.java</span></td><td><span data-slot="layer-extra-why">@SpringBootTest·@Autowired 제거, static 호출로 변경 (2)</span></td></tr>
+<tr data-repeat="layer-extra"><td><span data-slot="layer-extra">증적 문서</span></td><td><span class="chip" data-state="warn">변경</span></td><td><span data-slot="layer-extra-files">docs/evidence/yeri/REF-002-controller-cleanup/precheck.html, report.html</span></td><td><span data-slot="layer-extra-why">커밋 기준 표기 정정 (3)</span></td></tr>
+    </tbody></table></div>
+</section>
+
+<section class="sec" id="tests">
+  <h2><span class="no">6</span>기존 테스트 · 시나리오</h2>
+  <p class="hint">E2E는 개발 서버(8080)와 개발 DB(<code>./data/battery</code>)가 아니라, 따로 띄운 앱(별도 포트·별도 DB)에서 실행합니다. <code>test.fail()</code>로 표시한 알려진 결함 테스트는 실패하는 것이 정상입니다. 목록은 <code>grep -rn "test.fail" src/test/e2e</code> 로 확인해 주세요.</p>
+  <h3>JUnit (<code>src/test</code>)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>테스트</th><th>관련</th><th>메모</th></tr></thead>
+    <tbody>
+      <tr data-junit="OrderFlowTests"><td><b>OrderFlowTests</b><div class="hint">주문 확정·상태 변경·기준 정보 검증·로그인 흐름 (MockMvc)</div></td>
+        <td><span class="chip" data-state="warn" data-slot="junit-OrderFlowTests-rel">관련</span></td>
+        <td><span data-slot="junit-OrderFlowTests-note">상태 변경·확정·로그인 흐름을 MockMvc 로 지킨다. 세션 값은 로그인 후 항상 있어 필수 여부 차이는 직접 검증되지 않는다(공백).</span></td></tr>
+      <tr data-junit="PlannerTest"><td><b>PlannerTest</b><div class="hint">방문 횟수·적재량·재고 상한·출항 시점·비용 대소 등 계산 규칙</div></td>
+        <td><span class="chip" data-state="none" data-slot="junit-PlannerTest-rel">영향 없음</span></td>
+        <td><span data-slot="junit-PlannerTest-note">계산 코드를 바꾸지 않는다.</span></td></tr>
+      <tr data-junit="DemoApplicationTests"><td><b>DemoApplicationTests</b><div class="hint">스프링 컨텍스트가 뜨는지</div></td>
+        <td><span class="chip" data-state="none" data-slot="junit-DemoApplicationTests-rel">영향 없음</span></td>
+        <td><span data-slot="junit-DemoApplicationTests-note">컨텍스트 기동 확인. 변경 없음.</span></td></tr>
+      <tr data-repeat="junit-extra"><td><span data-slot="junit-extra">MasterFormTests</span></td><td><span class="chip" data-state="warn" data-slot="junit-extra-rel">관련</span></td><td><span data-slot="junit-extra-note">이번에 컨텍스트 없는 단위 테스트로 바뀐다. toForm 변환 값 6개를 지키는 유일한 테스트.</span></td></tr>
+    </tbody></table></div>
+  <p class="hint">아래 표는 작성할 때의 목록입니다. 테스트가 늘었다면 <code>ls src/test/java src/test/e2e</code> 로 확인하고 행을 추가해 주세요.</p>
+  <h3>E2E (<code>src/test/e2e</code>) — 시나리오 흐름별</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>흐름</th><th>시나리오</th><th>파일</th><th>관련</th><th>메모</th></tr></thead>
+    <tbody>
+      <tr data-e2e="1 로그인·접근 통제"><td><b>1 로그인·접근 통제</b></td><td>E2E-001~005</td><td><code>login-access.spec.ts</code></td>
+        <td><span class="chip" data-state="warn" data-slot="e2e-1-rel">관련</span></td>
+        <td><span data-slot="e2e-1-note">E2E-001~005: 미로그인 차단 확인. 인터셉터 동작이 그대로여야 한다.</span></td></tr>
+      <tr data-e2e="2 주문 수량 입력"><td><b>2 주문 수량 입력</b></td><td>E2E-006~010</td><td><code>order-quantity.spec.ts</code></td>
+        <td><span class="chip" data-state="none" data-slot="e2e-2-rel">영향 없음</span></td>
+        <td><span data-slot="e2e-2-note">수량 입력 코드 변경 없음.</span></td></tr>
+      <tr data-e2e="3 경로안 계산·비교"><td><b>3 경로안 계산·비교</b></td><td>E2E-011~014</td><td><code>simulation.spec.ts</code></td>
+        <td><span class="chip" data-state="none" data-slot="e2e-3-rel">영향 없음</span></td>
+        <td><span data-slot="e2e-3-note">경로 계산 변경 없음 (test.fail 1건은 그대로 실패해야 한다).</span></td></tr>
+      <tr data-e2e="4 주문 확정"><td><b>4 주문 확정</b></td><td>E2E-015~021</td><td><code>confirm.spec.ts · e2e-021.spec.ts</code></td>
+        <td><span class="chip" data-state="warn" data-slot="e2e-4-rel">관련</span></td>
+        <td><span data-slot="e2e-4-note">E2E-015~021: ApiController.confirm 변경 확인. 로그인 사용자 확정이 그대로 성공해야 한다.</span></td></tr>
+      <tr data-e2e="5 주문 목록·상세"><td><b>5 주문 목록·상세</b></td><td>E2E-022~026</td><td><code>e2e-022~026.spec.ts</code></td>
+        <td><span class="chip" data-state="none" data-slot="e2e-5-rel">영향 없음</span></td>
+        <td><span data-slot="e2e-5-note">조회 코드 변경 없음.</span></td></tr>
+      <tr data-e2e="6 주문 상태 관리"><td><b>6 주문 상태 관리</b></td><td>E2E-027~035</td><td><code>e2e-027~030.spec.ts · e2e031-041.spec.ts</code></td>
+        <td><span class="chip" data-state="warn" data-slot="e2e-6-rel">관련</span></td>
+        <td><span data-slot="e2e-6-note">E2E-027~035: OrderController.changeStatus 변경 확인. 033·035 는 test.fail 이므로 계속 실패해야 한다.</span></td></tr>
+      <tr data-e2e="7 기준 정보(마스터)"><td><b>7 기준 정보(마스터)</b></td><td>E2E-036~040</td><td><code>e2e031-041.spec.ts</code></td>
+        <td><span class="chip" data-state="warn" data-slot="e2e-7-rel">관련</span></td>
+        <td><span data-slot="e2e-7-note">E2E-036~040: 기준 정보 화면은 toForm 호출을 바꾼다. 입력칸 값이 그대로여야 한다.</span></td></tr>
+      <tr data-e2e="8 대표 종단 흐름"><td><b>8 대표 종단 흐름</b></td><td>E2E-041</td><td><code>e2e031-041.spec.ts</code></td>
+        <td><span class="chip" data-state="warn" data-slot="e2e-8-rel">관련</span></td>
+        <td><span data-slot="e2e-8-note">E2E-041: 확정과 상태 변경이 이어지는 대표 흐름.</span></td></tr>
+    </tbody></table></div>
+  <h3>알려진 결함 테스트 (<code>test.fail()</code>)에 미치는 영향</h3>
+  <p><span data-slot="known-defects">test.fail() 3건(E2E-033, E2E-035, simulation 가장 빠르게 불일치)에 영향 없음. 그대로 실패해야 한다.</span></p>
+  <h3>테스트 공백</h3>
+  <ul class="list"><li data-repeat="gap"><span data-slot="gap">세션 값이 없을 때(required=false) 직접 검증하는 테스트는 없다. 동작이 원래와 같아지는 복원이고 정상 경로에서는 인터셉터가 막으므로 새 테스트는 만들지 않는다.</span></li></ul>
+  <h3>추가·수정할 테스트 <span class="hint">(중복되거나 필요 없는 테스트는 만들지 말아 주세요)</span></h3>
+  <div class="tbl"><table>
+    <thead><tr><th>테스트</th><th>종류</th><th>이유</th></tr></thead>
+    <tbody><tr data-repeat="new-test"><td><span data-slot="new-test">MasterFormTests (수정, 새 테스트 없음)</span></td><td><span data-slot="new-test-kind">JUnit</span></td><td><span data-slot="new-test-why">스프링 컨텍스트 없이 같은 값을 검증하도록 가볍게 바꾼다.</span></td></tr></tbody></table></div>
+</section>
+
+<section class="sec for for-refactor" id="loop-refactor">
+  <h2><span class="no">★</span>리팩토링 Loop 점검</h2>
+  <ul class="list">
+    <li>바뀌면 안 되는 동작(불변 목록): <span data-slot="refactor-invariants">상태 변경 요청(POST /orders/{id}/status)과 주문 확정 API(POST /api/orders)의 응답·상태 전이·이력에 남는 사용자 이름, 기준 정보 화면의 입력칸 이름·값(억 원 단위 포함), 미로그인 시 로그인 화면 이동·API 401.</span></li>
+    <li>동작이 같음을 보장하는 안전망: <span data-slot="refactor-safety">JUnit: MasterFormTests(변환 값 6개), OrderFlowTests(상태 변경·확정·로그인). E2E 45건 전체(기준: REF-002 기록 45건 통과, test.fail 3건 포함). 이번 점검에서는 재실행하지 않았다.</span></li>
+    <li>이번에 하지 않는 정리: <span data-slot="refactor-out">Lint·Formatter 일괄 정리, 다른 컨트롤러의 세션 처리 변경, MasterService 의 다른 메서드 정리, 알려진 결함 수정, 증적 문서의 커밋 표기 외 내용 수정.</span></li>
+  </ul>
+</section>
+
+<section class="sec" id="plan">
+  <h2><span class="no">7</span>구현 계획</h2>
+  <div class="tbl"><table>
+    <thead><tr><th class="num">단계</th><th>내용</th></tr></thead>
+    <tbody><tr data-repeat="plan"><td class="num"><span data-slot="plan-step">1</span></td><td><span data-slot="plan-detail">OrderController.changeStatus 와 ApiController.confirm 의 @SessionAttribute(LoginInterceptor.SESSION_USER) 를 required = false 로 바꾼다.</span></td></tr>
+<tr data-repeat="plan"><td class="num"><span data-slot="plan-step">2</span></td><td><span data-slot="plan-detail">MasterService.toForm 을 public static 으로 바꾸고 MasterController 26행을 MasterService.toForm(service.currentMaster()) 로 맞춘다. 인스턴스 호출이 남지 않았는지 grep 한다.</span></td></tr>
+<tr data-repeat="plan"><td class="num"><span data-slot="plan-step">3</span></td><td><span data-slot="plan-detail">MasterFormTests 에서 @SpringBootTest, @Autowired 필드와 관련 import 를 지우고 MasterService.toForm(m) 을 직접 호출한다. 기대값 6개는 그대로 둔다.</span></td></tr>
+<tr data-repeat="plan"><td class="num"><span data-slot="plan-step">4</span></td><td><span data-slot="plan-detail">REF-002 의 report.html 110행 커밋 칸 "3ab240a (작업 트리 변경, 미커밋)" 과 precheck.html 112행 커밋 칸 "3ab240a" 를 "3ab240a 기준 작업, adebfca로 커밋" 으로 고친다. 다른 문구는 건드리지 않는다.</span></td></tr>
+<tr data-repeat="plan"><td class="num"><span data-slot="plan-step">5</span></td><td><span data-slot="plan-detail">이번에 하지 않는 것: 다른 컨트롤러·서비스 정리, 알려진 결함 수정, 포맷 일괄 정리, 새 테스트 추가.</span></td></tr></tbody></table></div>
+  <p class="hint only-hitl">HITL이면 계획은 비워 두셔도 됩니다. 사용자의 답을 받은 뒤 다시 점검하겠습니다.</p>
+</section>
+
+<section class="sec" id="checklist">
+  <h2><span class="no">8</span>구현 후 확인할 체크리스트 3개 <span class="hint">— verify 단계에서 확인합니다</span></h2>
+  <div class="check"><div class="n">1</div><div class="body"><b><span data-slot="check-1">세션 값이 없을 때 원래처럼 null 을 받는 형태이고, 로그인한 사용자의 상태 변경·확정은 이전과 같다.</span></b><div class="how">확인 방법: <span data-slot="check-1-how">OrderController 55행·ApiController 55행에 required = false 가 있는지 코드로 확인, 상태 변경·확정 E2E(e2e-027~030, confirm.spec.ts, e2e031-041)가 통과, 이력에 사용자 이름이 남는지 확인.</span></div></div></div>
+  <div class="check"><div class="n">2</div><div class="body"><b><span data-slot="check-2">toForm 이 static 이고 MasterFormTests 가 @SpringBootTest 없이 같은 값 6개를 검증하며 통과한다.</span></b><div class="how">확인 방법: <span data-slot="check-2-how">MasterFormTests 에 @SpringBootTest·@Autowired 가 없고 MasterService.toForm(m) 을 직접 호출하는지 확인, 기대값 6개(maxDaily_CHINA 등)가 그대로인지 diff 로 확인, gradlew test 통과.</span></div></div></div>
+  <div class="check"><div class="n">3</div><div class="body"><b><span data-slot="check-3">기존 Regression Test 전체(JUnit + E2E)가 기대한 결과이고, REF-002 증적 두 파일의 커밋 표기가 최종 커밋 기준으로 고쳐졌다.</span></b><div class="how">확인 방법: <span data-slot="check-3-how">JUnit 전체 통과(23건), E2E 를 별도 포트·메모리 DB 로 실행해 45건 모두 PASS(test.fail 3건은 계속 실패하는 것이 정상), REF-002 의 precheck.html·report.html 에서 "미커밋" 문구가 없는지 grep.</span></div></div></div>
+  <p class="hint">정확히 3개로 부탁드립니다. 가장 중요한 것만 골라 주세요.</p>
+</section>
+
+<p class="footer">precheck@2 · 프로젝트 공통 템플릿 (통합 · 개발 · 리팩토링 · 버그수정 Loop 공용) · 점검 로그 <span data-slot="footer-log">docs/logs/prepare/inspection_20261022_104315.log</span></p>
+</div>
+</body>
+</html>

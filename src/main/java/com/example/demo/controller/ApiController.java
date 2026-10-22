@@ -52,7 +52,7 @@ public class ApiController {
 	}
 
 	@PostMapping("/api/orders")
-	public ResponseEntity<?> confirm(@RequestBody ConfirmRequest request, @SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
+	public ResponseEntity<?> confirm(@RequestBody ConfirmRequest request, @SessionAttribute(name = LoginInterceptor.SESSION_USER, required = false) String user) {
 		try {
 			Order order = orderService.confirm(request.orders(), request.routeType(), request.masterVersion(),
 					request.memo(), user);

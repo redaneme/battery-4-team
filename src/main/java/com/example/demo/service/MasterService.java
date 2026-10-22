@@ -75,7 +75,7 @@ public class MasterService {
 	}
 
 	/** 화면 입력칸 이름 → 값 (운항비는 억 원 단위 문자열) */
-	public Map<String, String> toForm(Master m) {
+	public static Map<String, String> toForm(Master m) {
 		Map<String, String> form = new HashMap<>();
 		for (Master.FactoryParam f : m.factories()) {
 			form.put("maxDaily_" + f.country(), String.valueOf(f.maxDaily()));

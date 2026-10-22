@@ -52,7 +52,7 @@ public class OrderController {
 
 	@PostMapping("/orders/{id}/status")
 	public String changeStatus(@PathVariable Long id, @RequestParam OrderStatus status, @RequestParam long version,
-			@SessionAttribute(LoginInterceptor.SESSION_USER) String user, RedirectAttributes redirect) {
+			@SessionAttribute(name = LoginInterceptor.SESSION_USER, required = false) String user, RedirectAttributes redirect) {
 		try {
 			orderService.changeStatus(id, status, version, user);
 			redirect.addFlashAttribute("message", "상태를 '" + status.getLabel() + "'(으)로 바꿨습니다");

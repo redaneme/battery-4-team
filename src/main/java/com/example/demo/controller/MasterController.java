@@ -23,7 +23,7 @@ public class MasterController {
 	@GetMapping("/master")
 	public String master(Model model) {
 		if (!model.containsAttribute("form")) {
-			model.addAttribute("form", service.toForm(service.currentMaster()));
+			model.addAttribute("form", MasterService.toForm(service.currentMaster()));
 		}
 		addMasterModel(model);
 		return "master";

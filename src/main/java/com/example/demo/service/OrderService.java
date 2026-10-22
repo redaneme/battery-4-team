@@ -39,6 +39,9 @@ public class OrderService {
 	/**
 	 * 주문을 확정한다. 서버가 같은 입력으로 다시 계산해 계획을 만들고(클라이언트 값은 믿지 않는다),
 	 * 시뮬레이션 이후 마스터 데이터가 바뀌었으면 확정을 거부한다.
+	 * <p>
+	 * 주의: 내부에서 부르는 simulate 는 읽기 전용 트랜잭션인 {@code MasterService.currentMaster} 를 호출하며,
+	 * 이는 이 쓰기 트랜잭션에 참여한다. 이후 트랜잭션 속성(전파·읽기 전용 등)을 바꿀 때 주의한다.
 	 */
 	@Transactional
 	public Order confirm(Map<Country, Integer> requested, String routeType, long masterVersion, String memo,

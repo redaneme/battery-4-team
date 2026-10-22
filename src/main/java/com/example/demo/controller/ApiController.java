@@ -8,17 +8,16 @@ import com.example.demo.service.MasterService;
 import com.example.demo.service.OrderService;
 import com.example.demo.service.SimulationService;
 import com.example.demo.simulation.Master;
-import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
 
-@Controller
+@RestController
 public class ApiController {
 
 	public record SimulateRequest(Map<Country, Integer> orders) {
@@ -39,13 +38,11 @@ public class ApiController {
 	}
 
 	@GetMapping("/api/master")
-	@ResponseBody
 	public Master masterJson() {
 		return masterService.currentMaster();
 	}
 
 	@PostMapping("/api/simulate")
-	@ResponseBody
 	public ResponseEntity<?> simulate(@RequestBody SimulateRequest request) {
 		try {
 			return ResponseEntity.ok(simulationService.simulate(request.orders()));
@@ -55,11 +52,10 @@ public class ApiController {
 	}
 
 	@PostMapping("/api/orders")
-	@ResponseBody
-	public ResponseEntity<?> confirm(@RequestBody ConfirmRequest request, HttpSession session) {
+	public ResponseEntity<?> confirm(@RequestBody ConfirmRequest request, @SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
 		try {
 			Order order = orderService.confirm(request.orders(), request.routeType(), request.masterVersion(),
-					request.memo(), (String) session.getAttribute(LoginInterceptor.SESSION_USER));
+					request.memo(), user);
 			return ResponseEntity.ok(Map.of("id", order.getId()));
 		} catch (BusinessException e) {
 			return apiError(e);

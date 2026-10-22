@@ -3,9 +3,6 @@ package com.example.demo.controller;
 import com.example.demo.entity.Country;
 import com.example.demo.service.BusinessException;
 import com.example.demo.service.MasterService;
-import com.example.demo.simulation.Master;
-import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,10 +23,9 @@ public class MasterController {
 	@GetMapping("/master")
 	public String master(Model model) {
 		if (!model.containsAttribute("form")) {
-			model.addAttribute("form", toForm(service.currentMaster()));
+			model.addAttribute("form", service.toForm(service.currentMaster()));
 		}
-		model.addAttribute("factories", Country.factories());
-		model.addAttribute("countries", Country.values());
+		addMasterModel(model);
 		return "master";
 	}
 
@@ -40,28 +36,16 @@ public class MasterController {
 		} catch (BusinessException e) {
 			model.addAttribute("errors", e.getMessages());
 			model.addAttribute("form", form);
-			model.addAttribute("factories", Country.factories());
-			model.addAttribute("countries", Country.values());
+			addMasterModel(model);
 			return "master";
 		}
 		redirect.addFlashAttribute("message", "마스터 데이터를 저장했습니다");
 		return "redirect:/master";
 	}
 
-	/** 화면 입력칸 이름 → 값 */
-	private static Map<String, String> toForm(Master m) {
-		Map<String, String> form = new HashMap<>();
-		for (Master.FactoryParam f : m.factories()) {
-			form.put("maxDaily_" + f.country(), String.valueOf(f.maxDaily()));
-			form.put("stockLimit_" + f.country(), String.valueOf(f.stockLimit()));
-			form.put("unitCost_" + f.country(), String.valueOf(f.unitCost()));
-		}
-		for (Master.RouteParam r : m.routes()) {
-			form.put(MasterService.routeKey(r.from(), r.to()), String.valueOf(r.days()));
-		}
-		form.put("shipCount", String.valueOf(m.shipCount()));
-		form.put("shipDailyCost", new BigDecimal(m.shipDailyCostWon())
-				.divide(BigDecimal.valueOf(MasterService.WON_PER_EOK)).stripTrailingZeros().toPlainString());
-		return form;
+	/** 마스터 화면이 쓰는 공장·국가 목록 */
+	private static void addMasterModel(Model model) {
+		model.addAttribute("factories", Country.factories());
+		model.addAttribute("countries", Country.values());
 	}
 }

@@ -8,14 +8,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class DataInitializer implements ApplicationRunner {
 
-	private final MasterService service;
+	private final MasterService masterService;
 
-	public DataInitializer(MasterService service) {
-		this.service = service;
+	public DataInitializer(MasterService masterService) {
+		this.masterService = masterService;
 	}
 
 	@Override
 	public void run(ApplicationArguments args) {
-		service.initDefaults();
+		masterService.initDefaults();
 	}
 }

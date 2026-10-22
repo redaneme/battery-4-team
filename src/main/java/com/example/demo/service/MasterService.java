@@ -74,6 +74,23 @@ public class MasterService {
 		return new Master(s.getMasterVersion(), s.getShipCount(), s.getShipDailyCostWon(), fs, rs);
 	}
 
+	/** 화면 입력칸 이름 → 값 (운항비는 억 원 단위 문자열) */
+	public Map<String, String> toForm(Master m) {
+		Map<String, String> form = new HashMap<>();
+		for (Master.FactoryParam f : m.factories()) {
+			form.put("maxDaily_" + f.country(), String.valueOf(f.maxDaily()));
+			form.put("stockLimit_" + f.country(), String.valueOf(f.stockLimit()));
+			form.put("unitCost_" + f.country(), String.valueOf(f.unitCost()));
+		}
+		for (Master.RouteParam r : m.routes()) {
+			form.put(routeKey(r.from(), r.to()), String.valueOf(r.days()));
+		}
+		form.put("shipCount", String.valueOf(m.shipCount()));
+		form.put("shipDailyCost", new BigDecimal(m.shipDailyCostWon())
+				.divide(BigDecimal.valueOf(WON_PER_EOK)).stripTrailingZeros().toPlainString());
+		return form;
+	}
+
 	/** 항로 입력칸 이름 (from, to 는 ordinal 순) */
 	public static String routeKey(Country a, Country b) {
 		return a.ordinal() < b.ordinal() ? "days_" + a + "_" + b : "days_" + b + "_" + a;
